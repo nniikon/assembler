@@ -23,18 +23,19 @@ struct Register
  * V   V   V         V
  * 0   0   0 | 0  0  0  0  0
 */
-const Command COMMANDS[] = 
+constexpr Command COMMANDS[] = 
 {
-    {"push", 0b001'00001}, ///< push 5       001_00001     id = 01
-    {"push", 0b010'00001}, ///< push rcx     010_00001     id = 01
-    {"push", 0b011'00001}, ///< push rcx+5   011_00001     id = 01
+    {"push", 0b001'00001}, ///< push 5       001_00001     id = 01  0
+    {"push", 0b010'00001}, ///< push rcx     010_00001     id = 01  1
+    {"push", 0b011'00001}, ///< push rcx+5   011_00001     id = 01  2
 
-    {"div",  0b000'00010}, ///< div          000_00010     id = 02
-    {"sub",  0b000'00011}, ///< sub          000_00011     id = 03
-    {"out",  0b000'00100}, ///< out          000_00100     id = 04
+    {"div",  0b000'00010}, ///< div          000_00010     id = 02  3
+    {"sub",  0b000'00011}, ///< sub          000_00011     id = 03  4
+    {"out",  0b000'00100}, ///< out          000_00100     id = 04  5
 
-    {"HLT",  0b000'11111}, ///< HLT          000_11111     id = 31
+    {"HLT",  0b000'11111}, ///< HLT          000_11111     id = 31  6
 };
+
 
 
 const u_int8_t COM_REGISTER_BIT  = 0b010'00000;

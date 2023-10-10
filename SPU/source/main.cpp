@@ -34,6 +34,8 @@ int main()
     int* buffer = NULL;
     size_t bufferSize = 0;
 
+    spuInit();
+
     ParseError parseError = getFileSize(SPU_INPUT_FILE_NAME, &bufferSize);
     CHECK_PARSE_ERROR(parseError);
 
@@ -42,5 +44,7 @@ int main()
     
     execProgram(buffer, bufferSize);
     
+    spuDtor();
+
     free(buffer);
 }

@@ -9,6 +9,8 @@
 #include "stack.h"
 
 
+const int FLOATING_POINTER_COEFFICIENT = 100;
+
 enum SPU_Error
 {
     SPU_NO_ERROR,

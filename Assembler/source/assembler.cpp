@@ -29,10 +29,11 @@ const int ERROR_ID = -336;
 
 static int getRegisterNum(char* reg)
 {
-    for (size_t i = 1; i < AMOUNT_OF_REGISTERS + 1; i++)
+    for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
     {
-        if (strcmp(reg, REGS[i].name))
+        if (strcmp(reg, REGS[i].name) == 0)
         {
+            DUMP_PRINT("register id = %d\n", REGS[i].id);
             return REGS[i].id;
         }
     }
@@ -96,6 +97,7 @@ inline static void deleteAssemblerComments(char* str)
 
 AssemblerError textToAssembly(Text* txt, const char* outputFileName)
 {
+                                DUMP_PRINT("TEXT TO ASSEMBLY STARTED\n");
     FILE* outputFile = fopen(outputFileName, "wb");
     if (outputFile == NULL)
     {
