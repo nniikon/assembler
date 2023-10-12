@@ -3,7 +3,7 @@
 #include "../include/SPU.h"
 #include "../include/stack.h"
 
-const char* SPU_INPUT_FILE_NAME = "assembly.bin";
+const char* SPU_INPUT_FILE_NAME = "../assembly.bin";
 
 #define CHECK_STACK_ERROR(error)   \
 {                                  \
@@ -24,7 +24,10 @@ const char* SPU_INPUT_FILE_NAME = "assembly.bin";
 }
 
 /*
-TODO: rename config.h
+TODO:
+add float input
+add correct float ouput 
+rename config.h
 Rename stack errors
 */
 int main()

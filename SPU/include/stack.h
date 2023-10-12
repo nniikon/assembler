@@ -100,7 +100,7 @@ struct Stack
  * @param[in] stk The stack struct.
  * @param[in] StackError The error code.
  * 
- * @note You can change the log file using `setLogFile("FILE_NAME")`.
+ * @note You can change the log file using `setStackLogFile("FILE_NAME")`.
  */
 #define stackDump(stk, stackError) stackDump_internal((stk), (stackError), __FILE__, __LINE__, __FUNCTION__)
 
@@ -162,6 +162,6 @@ StackError stackDtor(Stack* stk);
  * 
  * @note Don't forget to call `stackDtor` when you're done to close the file.
 */
-StackError setLogFile(const char* fileName);
+StackError setStackLogFile(const char* fileName);
 
 #endif

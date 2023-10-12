@@ -480,7 +480,7 @@ static unsigned long long calculateDataHash(const Stack* stk)
 }
 
 
-StackError setLogFile(const char* fileName)
+StackError setStackLogFile(const char* fileName)
 {
     FILE* file = fopen(fileName, "w");
     if (file == NULL)
