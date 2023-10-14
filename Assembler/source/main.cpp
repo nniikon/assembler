@@ -2,7 +2,7 @@
 #include "../include/assembler.h"
 
 const char* INPUT_FILE_NAME = "source_code";
-const char* OUTPUT_FILE_NAME = "assembly.bin";
+const char* OUTPUT_FILE_NAME = "../assembly.bin";
 
 #define CHECK_PARSING_ERROR(...)\
 do\

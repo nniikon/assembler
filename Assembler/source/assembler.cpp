@@ -27,6 +27,23 @@ const int ERROR_ID = -336;
 #endif
 
 
+struct AssCommand
+{
+    char* name;
+    char* reg;
+    int num;
+
+    bool hasReg;
+    bool hasNum;
+};
+
+
+// struct AssCommandArray
+// {
+
+// };
+
+
 static int getRegisterNum(char* reg)
 {
     for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
@@ -41,39 +58,43 @@ static int getRegisterNum(char* reg)
 }
 
 
-static void putCommandToFile(char* name, char* reg, int num, FILE* file)
+static void putCommandToFile(const AssCommand* com, FILE* file)
 {
-    DUMP_PRINT("putCommandToFile(%s, %s, %d)\n", name, reg, num);
+    DUMP_PRINT("putCommandToFile(%s, %s, %d)\n", com->name, com->reg, com->num);
     for (size_t i = 0; i < AMOUNT_OF_COMMANDS; i++)
     {
-        if (strcmp(name, COMMANDS[i].name) == 0)
+        if (strcasecmp(com->name, COMMANDS[i].name) == 0)
         {
             // Copy the command id.
-            int command = (int) COMMANDS[i].code & COM_COMMAND_BITS;
+            int commandCode = (int) COMMANDS[i].code & COM_COMMAND_BITS;
             // Set the reg.
-            if (reg != NULL)             command |= COM_REGISTER_BIT;
+            if (com->hasReg)             commandCode |= COM_REGISTER_BIT;
             // Set the imm.
-            if (num != ASSEMBLER_POISON) command |= COM_IMMEDIATE_BIT; 
+            if (com->hasNum)             commandCode |= COM_IMMEDIATE_BIT; 
 
 
-            if (command == COMMANDS[i].code)
+            if (commandCode == COMMANDS[i].code)
             {
-                                              DUMP_PRINT("Command ID is: %d\n", command);
-                                              DUMP_PRINT("PUTTING TO THE FILE\n");
-                                              DUMP_PRINT("name = %s\n", name);
-                if (!reg)                     DUMP_PRINT("reg = %s\n", reg);
-                if (num != ASSEMBLER_POISON)  DUMP_PRINT("num = %d\n", num);
+                DUMP_PRINT("Command ID is: %d\n", commandCode);
+                DUMP_PRINT("PUTTING TO THE FILE\n");
+                DUMP_PRINT("name = %s\n", com->name);
 
-                fwrite(&command, sizeof(int), 1, file);
+                if (com->hasReg)    DUMP_PRINT("reg = %s\n", com->reg);
+                if (com->hasNum)    DUMP_PRINT("num = %d\n", com->num);
 
-                if (reg != NULL)
+                fwrite(&commandCode, sizeof(int), 1, file);
+
+                if (com->hasReg)
                 {
-                    int regId = getRegisterNum(reg);
+                    int regId = getRegisterNum(com->reg);
                     fwrite(&regId, sizeof(int), 1, file);
                 }
-                if (num != ASSEMBLER_POISON)    
-                    fwrite(&num,   sizeof(int), 1, file);
-                
+
+                if (com->hasNum)    
+                {
+                    fwrite(&com->num, sizeof(int), 1, file);
+                }
+
                 return;
             }
         }
@@ -97,11 +118,13 @@ inline static void deleteAssemblerComments(char* str)
 
 AssemblerError textToAssembly(Text* txt, const char* outputFileName)
 {
-                                DUMP_PRINT("TEXT TO ASSEMBLY STARTED\n");
+    DUMP_PRINT("TEXT TO ASSEMBLY STARTED\n");
+    
     FILE* outputFile = fopen(outputFileName, "wb");
     if (outputFile == NULL)
     {
-                            DUMP_PRINT("failed to open %s", outputFileName);
+        DUMP_PRINT("failed to open %s", outputFileName);
+        
         return ASSEMBLER_OPEN_FILE_ERROR;
     }
 
@@ -112,12 +135,19 @@ AssemblerError textToAssembly(Text* txt, const char* outputFileName)
     {
         char* str = txt->line[i].str;
 
-        int num = ASSEMBLER_POISON;
-        char* reg = NULL;
-        char* name = NULL;
-                            IF_ASSEMBLER_DEBUG(fprintf(stderr, "\n"));
-                            DUMP_PRINT("Analysing line num: %ld\n", i);
-                            DUMP_PRINT("string: <%s>\n", str);
+        AssCommand curCommand= 
+        {
+            .name = NULL,
+            .reg = NULL,
+            .num = 0,
+
+            .hasReg = false,
+            .hasNum = false,
+        };
+
+        IF_ASSEMBLER_DEBUG(fprintf(stderr, "\n"));
+        DUMP_PRINT("Analysing line num: %ld\n", i);
+        DUMP_PRINT("string: <%s>\n", str);
 
         size_t nWord = 0;
         char* word = strtok(str, " ");
@@ -129,7 +159,7 @@ AssemblerError textToAssembly(Text* txt, const char* outputFileName)
                     if (isalpha(word[0]))
                     {
                                             DUMP_PRINT("word <%s> number %ld is a WORD\n", word, nWord);
-                        name = word;
+                        curCommand.name = word;
                     }
                     else
                     {
@@ -140,13 +170,15 @@ AssemblerError textToAssembly(Text* txt, const char* outputFileName)
                 case 1:
                     if (isalpha(word[0]))
                     {
-                        reg = word;
+                        curCommand.reg = word;
+                        curCommand.hasReg = true;
                                             DUMP_PRINT("word <%s> number %ld is a WORD\n", word, nWord);
                     }
                     else if (isdigit(word[0]))
                     {
-                        num = atoi(word);
-                                            DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, num);
+                        curCommand.num = atoi(word);
+                        curCommand.hasNum = true;
+                                            DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, curCommand.num);
                     }
                     else    
                     {
@@ -157,8 +189,9 @@ AssemblerError textToAssembly(Text* txt, const char* outputFileName)
                 case 2:
                     if (isdigit(word[0]))
                     {
-                        num = atoi(word);
-                                            DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, num);
+                        curCommand.num = atoi(word);
+                        curCommand.hasNum = true;
+                                            DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, curCommand.num);
                     }
                     else    
                     {
@@ -174,7 +207,7 @@ AssemblerError textToAssembly(Text* txt, const char* outputFileName)
             word = strtok(NULL, " ");
             nWord++;
         }
-        putCommandToFile(name, reg, num, outputFile);
+        putCommandToFile(&curCommand, outputFile);
     }
     
 
