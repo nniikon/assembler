@@ -6,38 +6,36 @@
 const char* SPU_INPUT_FILE_NAME = "../assembly.bin";
 
 #define CHECK_STACK_ERROR(error)   \
+do                                 \
 {                                  \
-    if ((error) != NO_ERROR)       \
+    if ((error) != PARSE_NO_ERROR) \
     {                              \
         printf("error!\n");        \
         return error;              \
     }                              \
-}
+} while (0)                        \
 
 #define CHECK_PARSE_ERROR(error)   \
+do                                 \
 {                                  \
     if ((error) != PARSE_NO_ERROR) \
     {                              \
         printf("parse error!\n");  \
         return error;              \
     }                              \
-}
+} while (0)                        \
 
 /*
 TODO:
-add float input
-add correct float ouput 
 rename config.h
 Rename stack errors
 */
 int main()
 {      
-    int i = 0;
-
     int* buffer = NULL;
     size_t bufferSize = 0;
+    SPU spu = {};
 
-    spuInit();
 
     ParseError parseError = getFileSize(SPU_INPUT_FILE_NAME, &bufferSize);
     CHECK_PARSE_ERROR(parseError);
@@ -45,9 +43,13 @@ int main()
     parseError = fileToIntBuffer(&buffer, bufferSize, SPU_INPUT_FILE_NAME);
     CHECK_PARSE_ERROR(parseError);
     
-    execProgram(buffer, bufferSize);
+
+    spuInit(&spu, buffer);
+
+    execProgram(&spu);
     
-    spuDtor();
+    spuDtor(&spu);
+
 
     free(buffer);
 }

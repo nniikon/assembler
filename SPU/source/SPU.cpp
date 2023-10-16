@@ -1,8 +1,8 @@
 #include "../include/SPU.h"
 
 
-Stack gSTACK  = {};
-int   gREG[4] = {};
+const int REG_POISON = INT32_MIN;
+
 
 #define SPU_DEBUG
 
@@ -31,10 +31,10 @@ int   gREG[4] = {};
     #define DUMP_SPU()\
     do\
     {\
-        for (int i_deb = 0; i_deb < gSTACK.size; i_deb++)\
+        for (int i_deb = 0; i_deb < spu->stack.size; i_deb++)\
         {\
-            stackDump(&gSTACK, NO_ERROR);\
-            DUMP_COMMAND("\tdata[%d] = <%d>", i_deb, gSTACK.data[i_deb]);\
+            stackDump(&spu->stack, STACK_NO_ERROR);\
+            DUMP_COMMAND("\tdata[%d] = <%d>", i_deb, spu->stack.data[i_deb]);\
         }\
     } while (0);
     
@@ -95,261 +95,299 @@ ParseError getFileSize(const char* fileName, size_t* size)
     return PARSE_NO_ERROR;
 }
 
-static void push_num(const int* buffer, size_t* shift)
+static void push_num(SPU* spu)
 {
-    DUMP_PRINT("push_num( buffer <%p>, num <%d>)\n", buffer + *shift, *(buffer + (*shift + 1)));
+    DUMP_PRINT("push_num( buffer <%p>, num <%d> )\n", spu->curCommand, *(spu->curCommand + 1));
 
-    stackPush(&gSTACK, *(buffer + (*shift + 1)) * FLOATING_POINTER_COEFFICIENT);
+    stackPush(&spu->stack, *(spu->curCommand + 1) * FLOATING_POINTER_COEFFICIENT);
 
     DUMP_SPU();
 
-    *shift += 2;
+    spu->curCommand += 2;
 }
 
-static void push_reg(const int* buffer, size_t* shift)
+static void push_reg(SPU* spu)
 {
-    DUMP_PRINT("push_num( buffer <%p>, reg <%d>)\n", buffer + *shift, *(buffer + (*shift + 1)));
+    DUMP_PRINT("push_num( buffer <%p>, reg <%d> )\n", spu->curCommand, *(spu->curCommand + 1));
     
-    stackPush(&gSTACK, (gREG[getRegisterArrayNum(*(buffer + (*shift + 1)))]) * FLOATING_POINTER_COEFFICIENT);
+    stackPush(&spu->stack, (spu->reg[getRegisterArrayNum(*(spu->curCommand + 1))]) * FLOATING_POINTER_COEFFICIENT);
 
     DUMP_SPU();
     
-    *shift += 2;
+    spu->curCommand += 2;
 }
 
-static void push_reg_num(const int* buffer, size_t* shift)
+static void push_reg_num(SPU* spu)
 {
-    DUMP_PRINT("push_num( buffer <%p>, reg <%d>, num <%d>)\n", buffer + *shift, *(buffer + (*shift + 1)), *(buffer + (*shift + 2)));
+    DUMP_PRINT("push_num( buffer <%p>, reg <%d>, num <%d> )\n", spu->curCommand, *(spu->curCommand + 1), *(spu->curCommand + 2));
     
-    stackPush(&gSTACK, (gREG[getRegisterArrayNum(*(buffer + (*shift + 1)))] + *(buffer + (*shift + 2))) * FLOATING_POINTER_COEFFICIENT);
+    stackPush(&spu->stack, (spu->reg[getRegisterArrayNum(*(spu->curCommand + 1))] + *(spu->curCommand + 2)) * FLOATING_POINTER_COEFFICIENT);
 
     DUMP_SPU();
     
-    *shift += 3;
+    spu->curCommand += 3;
 }
 
-static void div(const int* buffer, size_t* shift)
+static void div(SPU* spu)
 {
-    DUMP_PRINT("div( buffer <%p>)\n", buffer + *shift);
+    DUMP_PRINT("div( buffer <%p> )\n", spu->curCommand);
 
     int a = 0;
     int b = 0;
 
-    stackPop(&gSTACK, &a);
-    stackPop(&gSTACK, &b);
+    stackPop(&spu->stack, &a);
+    stackPop(&spu->stack, &b);
     
     b *= FLOATING_POINTER_COEFFICIENT;
     
-    stackPush(&gSTACK, b / a);
+    stackPush(&spu->stack, b / a);
 
     DUMP_COMMAND("Division:\t <%d - %d = %d>", b, a, b / a);
     
     DUMP_SPU();
 
-    *shift += 1;
+    spu->curCommand += 1;
 }
 
-static void sub(const int* buffer, size_t* shift)
+static void sub(SPU* spu)
 {
-    DUMP_PRINT("sub( buffer <%p>)\n", buffer + *shift);
+    DUMP_PRINT("sub( buffer <%p> )\n", spu->curCommand);
     int a = 0;
     int b = 0;
     
-    stackPop(&gSTACK, &a);
-    stackPop(&gSTACK, &b);
+    stackPop(&spu->stack, &a);
+    stackPop(&spu->stack, &b);
 
-    stackPush(&gSTACK, b - a);
+    stackPush(&spu->stack, b - a);
 
     DUMP_COMMAND("Subtraction:\t <%d - %d = %d>", b, a, b - a);
     
     DUMP_SPU();
 
-    *shift += 1;
+    spu->curCommand += 1;
 }
 
-static void add(const int* buffer, size_t* shift)
+static void add(SPU* spu)
 {
-    DUMP_PRINT("add( buffer <%p>)\n", buffer + *shift);
+    DUMP_PRINT("add( buffer <%p> )\n", spu->curCommand);
     int a = 0;
     int b = 0;
     
-    stackPop(&gSTACK, &a);
-    stackPop(&gSTACK, &b);
+    stackPop(&spu->stack, &a);
+    stackPop(&spu->stack, &b);
 
-    stackPush(&gSTACK, b + a);
+    stackPush(&spu->stack, b + a);
 
     DUMP_COMMAND("Addition:\t <%d + %d = %d>", b, a, b + a);
     
     DUMP_SPU();
     
-    *shift += 1;
+    spu->curCommand += 1;
 }
 
-static void out(const int* buffer, size_t* shift)
+static void out(SPU* spu)
 {
-    DUMP_PRINT("out( buffer <%p>)\n", buffer + *shift);
+    DUMP_PRINT("out( buffer <%p> )\n", spu->curCommand);
 
     int a = 0;
-    stackPop(&gSTACK, &a);
 
-    fprintf(stdout, "\033[91m" "%d,%d" "\033[0m\n", a / FLOATING_POINTER_COEFFICIENT, a % FLOATING_POINTER_COEFFICIENT);
+    stackPop(&spu->stack, &a);
+
+    float fa = (float)a / FLOATING_POINTER_COEFFICIENT;
+
+    fprintf(stdout, "\033[91m" "%g" "\033[0m\n", fa);
 
     DUMP_SPU();
 
-    *shift += 1;
+    spu->curCommand += 1;
 }
 
-static void in(const int* buffer, size_t* shift)
+static void in(SPU* spu)
 {
-    DUMP_PRINT("in( buffer <%p>)\n", buffer + *shift);
+    DUMP_PRINT("in( buffer <%p> )\n", spu->curCommand);
 
     float a = 0;
-    fscanf(stdin, "%d", &a);
+    fscanf(stdin, "%g", &a);
 
-    stackPush(&gSTACK, a * FLOATING_POINTER_COEFFICIENT);
+    stackPush(&spu->stack, (int) (a * FLOATING_POINTER_COEFFICIENT));
 
-    DUMP_COMMAND("In: pushed <%d> to stack", a);
+    DUMP_COMMAND("In: pushed <%d> to stack", (int) (a * FLOATING_POINTER_COEFFICIENT));
 
     DUMP_SPU();
 
-    *shift += 1;
+    spu->curCommand += 1;
 }
 
-static void mul(const int* buffer, size_t* shift)
+static void mul(SPU* spu)
 {
-    DUMP_PRINT("mul( buffer <%p>)\n", buffer + *shift);
+    DUMP_PRINT("mul( buffer <%p> )\n", spu->curCommand);
 
     int a = 0;
     int b = 0;
     
-    stackPop(&gSTACK, &a);
-    stackPop(&gSTACK, &b);
+    stackPop(&spu->stack, &a);
+    stackPop(&spu->stack, &b);
 
-    stackPush(&gSTACK, a * b / FLOATING_POINTER_COEFFICIENT);
+    stackPush(&spu->stack, a * b / FLOATING_POINTER_COEFFICIENT);
 
     DUMP_COMMAND("Multiplication:\t <%d * %d = %d>", a, b, a * b);
 
     DUMP_SPU();
     
-    *shift += 1;
+    spu->curCommand += 1;
 }
 
-static void sqrt(const int* buffer, size_t* shift)
+static void sqrt(SPU* spu)
 {
-    DUMP_PRINT("sqrt( buffer <%p>)\n", buffer + *shift);
+    DUMP_PRINT("sqrt( buffer <%p> )\n", spu->curCommand);
 
     int a = 0;
     
-    stackPop(&gSTACK, &a);
+    stackPop(&spu->stack, &a);
 
-    stackPush(&gSTACK, (int)sqrt(a * FLOATING_POINTER_COEFFICIENT));
+    stackPush(&spu->stack, (int)sqrt(a * FLOATING_POINTER_COEFFICIENT));
 
     DUMP_COMMAND("sqrt:\t <sqrt(%d) = %d>", a, (int)sqrt(a * FLOATING_POINTER_COEFFICIENT));
 
     DUMP_SPU();
     
-    *shift += 1;
+    spu->curCommand += 1;
 }
 
-static void sin(const int* buffer, size_t* shift)
+static void sin(SPU* spu)
 {
-    DUMP_PRINT("sin( buffer <%p>)\n", buffer + *shift);
+    DUMP_PRINT("sin( buffer <%p> )\n", spu->curCommand);
 
     int a = 0;
     
-    stackPop(&gSTACK, &a);
+    stackPop(&spu->stack, &a);
 
-    a /= FLOATING_POINTER_COEFFICIENT;
-
-    stackPush(&gSTACK, (int) (sin(a) * FLOATING_POINTER_COEFFICIENT));
+    stackPush(&spu->stack, (int) (FLOATING_POINTER_COEFFICIENT * sin(((float)a) / FLOATING_POINTER_COEFFICIENT)));
 
     DUMP_COMMAND("sin:\t <sin(%d) = %d>", a, (int)sin(a));
 
     DUMP_SPU();
     
-    *shift += 1;
+    spu->curCommand += 1;
 }
 
-static void cos(const int* buffer, size_t* shift)
+static void cos(SPU* spu)
 {
-    DUMP_PRINT("cos( buffer <%p>)\n", buffer + *shift);
+    DUMP_PRINT("cos( buffer <%p> )\n", spu->curCommand);
 
     int a = 0;
     
-    stackPop(&gSTACK, &a);
+    stackPop(&spu->stack, &a);
 
-    a /= FLOATING_POINTER_COEFFICIENT;
-
-    stackPush(&gSTACK, (int) (cos(a) * FLOATING_POINTER_COEFFICIENT));
+    stackPush(&spu->stack, (int) (FLOATING_POINTER_COEFFICIENT * cos(((float)a) / FLOATING_POINTER_COEFFICIENT)));
 
     DUMP_COMMAND("cos:\t <cos(%d) = %d>", a, (int)cos(a));
 
     DUMP_SPU();
     
-    *shift += 1;
+    spu->curCommand += 1;
 }
 
-SPU_Error execProgram(int* buffer, size_t size)
+static void pop(SPU* spu)
+{
+    DUMP_PRINT("pop( buffer <%p> )\n", spu->curCommand);
+
+    int a = 0;
+    
+    stackPop(&spu->stack, &a);
+
+    spu->reg[getRegisterArrayNum(*(spu->curCommand + 1))] = a;
+
+    DUMP_COMMAND("cos:\t <cos(%d) = %d>", a, (int)cos(a));
+
+    DUMP_SPU();
+    
+    spu->curCommand += 2;
+}
+
+SPU_Error execProgram(SPU* spu)
 {
     //  SIZE IS IN BYTES!!!!!!!!!!!!!!!!!!!
-    DUMP_PRINT("execProgram( buffer <%p>, size <%lu>)\n", buffer, size);
+    DUMP_PRINT("execProgram( buffer <%p> )\n", spu->curCommand);
 
-    size_t currentShift = 0;
-
-    while (currentShift * sizeof(int) <= size)
-    {
-        u_int8_t currentBuffer = (u_int8_t) *(buffer + currentShift);
+    while (true)
+    {        
+        DUMP_PRINT("currentBufferID = <%u>\n", *spu->curCommand);
         
-        DUMP_PRINT("currentBufferID = <%u>\n", currentBuffer);
-        
-        switch (currentBuffer)
+        switch (*spu->curCommand)
         {
-            case COMMANDS[PUSH_NUM_ID].code:        push_num    (buffer, &currentShift); break;
-            case COMMANDS[PUSH_REG_ID].code:        push_reg    (buffer, &currentShift); break;
-            case COMMANDS[PUSH_REG_NUM_ID].code:    push_reg_num(buffer, &currentShift); break;
-            case COMMANDS[DIV_ID].code:             div         (buffer, &currentShift); break;
-            case COMMANDS[SUB_ID].code:             sub         (buffer, &currentShift); break;
-            case COMMANDS[OUT_ID].code:             out         (buffer, &currentShift); break;
-            case COMMANDS[IN_ID].code:              in          (buffer, &currentShift); break;
-            case COMMANDS[MUL_ID].code:             mul         (buffer, &currentShift); break;
-            case COMMANDS[ADD_ID].code:             add         (buffer, &currentShift); break;
-            case COMMANDS[SQRT_ID].code:            sqrt        (buffer, &currentShift); break; 
-            case COMMANDS[SIN_ID].code:             sin        (buffer, &currentShift);  break;
-            case COMMANDS[COS_ID].code:             cos        (buffer, &currentShift);  break;
-            case COMMANDS[HLT_ID].code: return SPU_NO_ERROR;                             break;
-            default:                    return SPU_INCORRECT_INPUT;                      break;
+            case COMMANDS[PUSH_NUM_ID].code:        push_num    (spu);  break;
+            case COMMANDS[PUSH_REG_ID].code:        push_reg    (spu);  break;
+            case COMMANDS[PUSH_REG_NUM_ID].code:    push_reg_num(spu);  break;
+            case COMMANDS[DIV_ID].code:             div         (spu);  break;
+            case COMMANDS[SUB_ID].code:             sub         (spu);  break;
+            case COMMANDS[OUT_ID].code:             out         (spu);  break;
+            case COMMANDS[IN_ID].code:              in          (spu);  break;
+            case COMMANDS[MUL_ID].code:             mul         (spu);  break;
+            case COMMANDS[ADD_ID].code:             add         (spu);  break;
+            case COMMANDS[SQRT_ID].code:            sqrt        (spu);  break; 
+            case COMMANDS[SIN_ID].code:             sin         (spu);  break;
+            case COMMANDS[COS_ID].code:             cos         (spu);  break;
+            case COMMANDS[POP_ID].code:             pop         (spu);  break;
+            case COMMANDS[HLT_ID].code: return SPU_NO_ERROR;            break;
+            default:                    return SPU_INCORRECT_INPUT;     break;
         }
     }
     return SPU_NO_ERROR;
 }
 
-SPU_Error spuInit()
+SPU_Error spuInit(SPU* spu, int* commandsArr)
 {
     DUMP_PRINT("SPU initialization started:\n");
+
+    // Error handling.
+    if (spu == NULL)         return SPU_NULL_SPU;
+    if (commandsArr == NULL) return SPU_NULL_ARRAY;
+
+    // SPU init.
+    spu->curCommand = commandsArr;
+    
+    for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
+        spu->reg[i] = REG_POISON;
+    
+    // Stack init.
     setStackLogFile("stackLog.htm"); // rename setStackLogFile
-    StackError stackError = stackInit(&gSTACK);
-    if (stackError != NO_ERROR)
+
+    StackError stackError = stackInit(&spu->stack);
+
+    // Stack error handling.
+    if (stackError != STACK_NO_ERROR)
     {
         DUMP_PRINT("Stack Error occured:\n");
         
-        stackDump(&gSTACK, stackError);
+        stackDump(&spu->stack, stackError);
         return SPU_STACK_ERROR;
     }
+
     DUMP_PRINT("SPU initialization ended successfully:\n");
     return SPU_NO_ERROR;
 }
 
-SPU_Error spuDtor()
+SPU_Error spuDtor(SPU* spu)
 {
     DUMP_PRINT("SPU destruction started:\n");
+    if (spu == NULL) return SPU_NULL_SPU;
 
-    StackError stackError = stackDtor(&gSTACK);
-    if (stackError != NO_ERROR)
+    // Poison the SPU.
+    spu->curCommand = NULL;
+
+    for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
+        spu->reg[i] = REG_POISON;
+
+    // Destruct the stack.
+    StackError stackError = stackDtor(&spu->stack);
+    if (stackError != STACK_NO_ERROR)
     {
         DUMP_PRINT("Stack Error occured:\n");
 
         return SPU_STACK_ERROR;
     }
+
     DUMP_PRINT("SPU destruction ended successfully:\n");
     return SPU_NO_ERROR;
 }

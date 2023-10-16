@@ -8,8 +8,15 @@
 #include "../../commands.h"
 #include "stack.h"
 
-
 const int FLOATING_POINTER_COEFFICIENT = 100;
+
+struct SPU
+{
+    Stack stack;
+    int reg[AMOUNT_OF_REGISTERS];
+    int* curCommand;
+};
+
 
 enum SPU_Error
 {
@@ -17,6 +24,8 @@ enum SPU_Error
     SPU_FILE_OPEN_ERROR,
     SPU_INCORRECT_INPUT,
     SPU_STACK_ERROR,
+    SPU_NULL_SPU,
+    SPU_NULL_ARRAY,
 };
 
 enum ParseError
@@ -34,10 +43,10 @@ ParseError getFileSize(const char* fileName, size_t* size);
 
 ParseError fileToIntBuffer(int** buffer, const size_t size, const char* FILE_NAME);
 
-SPU_Error execProgram(int* buffer, size_t size);
+SPU_Error execProgram(SPU* spu);
 
-SPU_Error spuInit();
+SPU_Error spuInit(SPU* spu, int* commandsArr);
 
-SPU_Error spuDtor();
+SPU_Error spuDtor(SPU* spu);
 
 #endif
