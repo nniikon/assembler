@@ -99,7 +99,7 @@ static void push_num(SPU* spu)
 {
     DUMP_PRINT("push_num( buffer <%p>, num <%d> )\n", spu->curCommand, *(spu->curCommand + 1));
 
-    stackPush(&spu->stack, *(spu->curCommand + 1) * FLOATING_POINTER_COEFFICIENT);
+    stackPush(&spu->stack, *(spu->curCommand + 1));
 
     DUMP_SPU();
 
@@ -290,7 +290,7 @@ static void cos(SPU* spu)
 
 static void pop(SPU* spu)
 {
-    DUMP_PRINT("pop( buffer <%p> )\n", spu->curCommand);
+    DUMP_PRINT("pop( buffer <%p>, reg <%d> )\n", spu->curCommand, *(spu->curCommand + 1));
 
     int a = 0;
     
@@ -298,7 +298,7 @@ static void pop(SPU* spu)
 
     spu->reg[getRegisterArrayNum(*(spu->curCommand + 1))] = a;
 
-    DUMP_COMMAND("cos:\t <cos(%d) = %d>", a, (int)cos(a));
+    DUMP_COMMAND("pop:\t <reg <%d> = %d>", *(spu->curCommand + 1), spu->reg[getRegisterArrayNum(*(spu->curCommand + 1))]);
 
     DUMP_SPU();
     
