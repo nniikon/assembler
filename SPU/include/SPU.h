@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <malloc.h>
-#include "../../commands.h"
+#include "../../CPU_common.h"
 #include "stack.h"
 
 struct SPU

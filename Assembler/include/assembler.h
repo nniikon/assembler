@@ -3,7 +3,7 @@
 
 #include <assert.h>
 #include "../../lib/parse.h"
-#include "../../commands.h"
+#include "../../CPU_common.h"
 #include "colors.h"
 
 const int ASSEMBLER_POISON = INT_MIN;

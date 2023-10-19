@@ -305,6 +305,14 @@ static void pop(SPU* spu)
     spu->curCommand += 2;
 }
 
+static void HLT(SPU* spu)
+{
+    DUMP_PRINT("HLT( buffer <%p>)\n", spu->curCommand);
+    exit(0); // CRINGE FIX TODO: FIX CRINGE 
+}
+
+
+
 SPU_Error execProgram(SPU* spu)
 {
     //  SIZE IS IN BYTES!!!!!!!!!!!!!!!!!!!
@@ -316,20 +324,13 @@ SPU_Error execProgram(SPU* spu)
         
         switch (*spu->curCommand)
         {
-            case COMMANDS[PUSH_NUM_ID].code:        push_num    (spu);  break;
-            case COMMANDS[PUSH_REG_ID].code:        push_reg    (spu);  break;
-            case COMMANDS[PUSH_REG_NUM_ID].code:    push_reg_num(spu);  break;
-            case COMMANDS[DIV_ID].code:             div         (spu);  break;
-            case COMMANDS[SUB_ID].code:             sub         (spu);  break;
-            case COMMANDS[OUT_ID].code:             out         (spu);  break;
-            case COMMANDS[IN_ID].code:              in          (spu);  break;
-            case COMMANDS[MUL_ID].code:             mul         (spu);  break;
-            case COMMANDS[ADD_ID].code:             add         (spu);  break;
-            case COMMANDS[SQRT_ID].code:            sqrt        (spu);  break; 
-            case COMMANDS[SIN_ID].code:             sin         (spu);  break;
-            case COMMANDS[COS_ID].code:             cos         (spu);  break;
-            case COMMANDS[POP_ID].code:             pop         (spu);  break;
-            case COMMANDS[HLT_ID].code: return SPU_NO_ERROR;            break;
+            #define DEF_CMD(name, byte_code, has_reg, has_num, func_name)\
+                case COMMANDS[name ## has_reg ## has_num ## _ID].code: func_name(spu); break;
+            
+            #include "../../CPU_commands.h"
+
+            #undef DEF_CMD
+
             default:                    return SPU_INCORRECT_INPUT;     break;
         }
     }
