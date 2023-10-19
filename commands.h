@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+const int FLOATING_POINTER_COEFFICIENT = 100;
+
 struct Command
 {
     const char* const name;
@@ -40,7 +42,9 @@ constexpr Command COMMANDS[] =
     {"sin",  0b000'01001}, ///< sin          000_01001     id = 09  10
     {"cos",  0b000'01010}, ///< cos          000_01010     id = 10  11
 
-    {"HLT",  0b000'11111}, ///< HLT          000_11111     id = 31  12
+    {"pop",  0b010'01011}, ///< pop          000_01010     id = 11  12
+
+    {"HLT",  0b000'11111}, ///< HLT          000_11111     id = 31  13
 };
 
 enum eCOMMANDS
@@ -57,7 +61,8 @@ enum eCOMMANDS
     SQRT_ID         = 9,
     SIN_ID          = 10,
     COS_ID          = 11,
-    HLT_ID          = 12,
+    POP_ID          = 12,
+    HLT_ID          = 13,
 };
 
 
@@ -77,8 +82,6 @@ const Register REGS[] =
 
 const size_t AMOUNT_OF_COMMANDS = sizeof(COMMANDS) / sizeof(Command);
 
-#define NUM(x) x
-#define STR(x) #x
 
 const size_t AMOUNT_OF_REGISTERS = sizeof(REGS) / sizeof(Register);
 

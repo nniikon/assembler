@@ -8,8 +8,6 @@
 #include "../../commands.h"
 #include "stack.h"
 
-const int FLOATING_POINTER_COEFFICIENT = 100;
-
 struct SPU
 {
     Stack stack;

@@ -26,10 +26,6 @@
 #endif
 
 
-#define GENERATE_STR(x) #x,
-
-
-
 enum CommandError 
 {
     // Generate enum.
@@ -39,8 +35,6 @@ enum CommandError
 };
 
 
-
-
 static const char* errorStr[] = 
 {
     // Generate error string names.
@@ -48,7 +42,6 @@ static const char* errorStr[] =
     #include "../include/errors.h"
     #undef DEF_ERR
 };
-
 
 
 struct AssCommand
@@ -125,36 +118,37 @@ static void printAssError(const AssCommand* command, Assembler* ass)
     
     int cmdNum = (int) command->error;
 
+    fprintf(stderr, BOLD "%s:%lu: " RESET, ass->inputFileName, command->line);
+    fprintf(stderr, RED "error:" RESET BOLD " %s" RESET, errorStr[cmdNum]);
+
+    char* errorWord = NULL;
+
     switch (command->error)
     {
-    case CMD_NO_ERROR:
-        return;
-    case CMD_INVALID_CMD_NAME:
-    case CMD_TOO_MANY_ARGS:
-    case CMD_INVALID_ARG:
-        {
-            fprintf(stderr, BOLD "%s:%lu: " RESET, ass->inputFileName, command->line);
-            fprintf(stderr, RED "error:" RESET BOLD " %s\n" RESET, errorStr[cmdNum]);
+        case CMD_INVALID_CMD_NAME:  errorWord = command->name;  break;
+        case CMD_TOO_MANY_ARGS:     errorWord = NULL;           break;
+        case CMD_INVALID_ARG:       errorWord = command->reg;   break;
 
-            fprintf(stderr, MAGENTA "%lu | " RESET, command->line); 
-            // Print the whole line.
-            // This is neccessary because of the previous usage of strtok().
-            size_t curStrAdress = (size_t) ass->inputText.line[command->line].str;
-            size_t nextStrAdress =  (size_t) ass->inputText.line[command->line + 1].str;
-            for (size_t i = 0; i < nextStrAdress - curStrAdress; i++)
-            {
-                char chr = * (char*) (curStrAdress + i);
-                if (chr == '\0') chr = ' ';     
-                fprintf(stderr, YELLOW "%c" RESET, chr);            
-            }
-
-            fprintf(stderr, YELLOW "\n\"%s\"\n" RESET, ass->inputText.line[command->line].str);
+        case CMD_NO_ERROR:
+        default:
+            DUMP_PRINT("UNKNOWN ERROR");
             break;
-        }
-    default:
-        DUMP_PRINT("UNKNOWN ERROR");
-        break;
     }
+    
+    if (errorWord != NULL) fprintf(stderr, CYAN " \"%s\"\n" RESET, errorWord);
+
+    fprintf(stderr, MAGENTA "\t\t%lu | " RESET, command->line); 
+    // Print the whole line.
+    // This is neccessary because of the previous usage of strtok().
+    size_t curStrAdress = (size_t) ass->inputText.line[command->line].str;
+    size_t nextStrAdress =  (size_t) ass->inputText.line[command->line + 1].str;
+    for (size_t i = 0; i < nextStrAdress - curStrAdress; i++)
+    {
+        char chr = * (char*) (curStrAdress + i);
+        if (chr == '\0') chr = ' ';     
+        fprintf(stderr, YELLOW "%c" RESET, chr);            
+    }
+    putc('\n', stderr);
 }
 
 
@@ -269,7 +263,7 @@ static AssCommand getCommandFromLine(char* str, size_t line)
                 {
                     DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, command.num);
                     
-                    command.num = atoi(word);
+                    command.num = (int) (atof(word) * FLOATING_POINTER_COEFFICIENT);
                     command.hasNum = true;
                 }
                 else    
@@ -285,7 +279,7 @@ static AssCommand getCommandFromLine(char* str, size_t line)
                 {
                     DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, command.num);
                     
-                    command.num = atoi(word);
+                    command.num = (int) (atof(word) * FLOATING_POINTER_COEFFICIENT);
                     command.hasNum = true;
                 }
                 else    
@@ -335,7 +329,7 @@ AssemblerError textToAssembly(Assembler* ass, const char* outputFileName)
     for (size_t nLine = 0; nLine < ass->inputText.nLines; nLine++)
     {
         char* str = ass->inputText.line[nLine].str;
-        deleteAssemblerComments(str);
+        deleteAssemblerComments(str); // TODO: fix error output
 
         DUMP_PRINT("Analysing line num: %ld\n", nLine);
 

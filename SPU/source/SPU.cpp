@@ -108,9 +108,9 @@ static void push_num(SPU* spu)
 
 static void push_reg(SPU* spu)
 {
-    DUMP_PRINT("push_num( buffer <%p>, reg <%d> )\n", spu->curCommand, *(spu->curCommand + 1));
+    DUMP_PRINT("push_reg( buffer <%p>, reg <%d> )\n", spu->curCommand, *(spu->curCommand + 1));
     
-    stackPush(&spu->stack, (spu->reg[getRegisterArrayNum(*(spu->curCommand + 1))]) * FLOATING_POINTER_COEFFICIENT);
+    stackPush(&spu->stack, (spu->reg[getRegisterArrayNum(*(spu->curCommand + 1))]));
 
     DUMP_SPU();
     
@@ -119,9 +119,9 @@ static void push_reg(SPU* spu)
 
 static void push_reg_num(SPU* spu)
 {
-    DUMP_PRINT("push_num( buffer <%p>, reg <%d>, num <%d> )\n", spu->curCommand, *(spu->curCommand + 1), *(spu->curCommand + 2));
+    DUMP_PRINT("push_reg_num( buffer <%p>, reg <%d>, num <%d> )\n", spu->curCommand, *(spu->curCommand + 1), *(spu->curCommand + 2));
     
-    stackPush(&spu->stack, (spu->reg[getRegisterArrayNum(*(spu->curCommand + 1))] + *(spu->curCommand + 2)) * FLOATING_POINTER_COEFFICIENT);
+    stackPush(&spu->stack, (spu->reg[getRegisterArrayNum(*(spu->curCommand + 1))] + *(spu->curCommand + 2)));
 
     DUMP_SPU();
     
