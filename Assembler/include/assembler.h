@@ -11,6 +11,7 @@ const int ASSEMBLER_POISON = INT_MIN;
 struct Assembler
 {
     Text inputText;
+    const char* inputFileName;
     int* outputBuffer;
     size_t outputBufferPos;
 };

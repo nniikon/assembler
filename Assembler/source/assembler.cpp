@@ -25,27 +25,28 @@
     #define IF_ASSEMBLER_DEBUG(...) do {} while(0)
 #endif
 
-#define CMD_DEFINE(DO)\
-    DO(CMD_NO_ERROR)\
-    DO(CMD_INVALID_CMD_NAME)\
-    DO(CMD_INVALID_ARGUMENT)\
-    DO(CMD_TOO_MANY_ARGS)
 
-
-#define GENERATE_ENUM(x) x,
 #define GENERATE_STR(x) #x,
 
 
 
 enum CommandError 
 {
-    CMD_DEFINE(GENERATE_ENUM)
+    // Generate enum.
+    #define DEF_ERR(name, errStr) CMD_ ## name,
+    #include "../include/errors.h"
+    #undef DEF_ERR
 };
+
+
 
 
 static const char* errorStr[] = 
 {
-    CMD_DEFINE(GENERATE_STR)
+    // Generate error string names.
+    #define DEF_ERR(name, errStr) errStr,
+    #include "../include/errors.h"
+    #undef DEF_ERR
 };
 
 
@@ -70,6 +71,31 @@ struct AssCommand
 // The size of the output buffer depends on this value.
 const size_t MAX_NUMBER_LINE_CMD = 3;
 
+/**
+ * @brief Returns a register ID by it's name.
+*/
+static int getRegisterNum(char* reg);
+
+/**
+ * @brief Puts byte code into the given file.
+*/
+static void putBufferToFile(const Assembler* ass, FILE* outputFile);
+
+/**
+ * @brief Prints a compiling error from the `command` struct. 
+ */
+static void printAssError(const AssCommand* command, Assembler* ass);
+
+/**
+ * @brief Transfers the given `AssCommand` into the byte code.
+ */
+static void putCommandToBuffer(AssCommand* com, Assembler* ass);
+
+/**
+ * @brief Returns a pointer to the AssCommand set by the given string. May print error.
+ */
+static AssCommand getCommandFromLine(char* str, size_t line);
+
 
 static int getRegisterNum(char* reg)
 {
@@ -91,11 +117,13 @@ static void putBufferToFile(const Assembler* ass, FILE* outputFile)
 }
 
 
-static void checkAssError(const AssCommand* command, Assembler* ass)
+static void printAssError(const AssCommand* command, Assembler* ass)
 {
+    assert(command);
+    assert(ass);
     if (command->error == CMD_NO_ERROR) return; 
     
-    int cmdNum = (int) command->error; 
+    int cmdNum = (int) command->error;
 
     switch (command->error)
     {
@@ -103,12 +131,12 @@ static void checkAssError(const AssCommand* command, Assembler* ass)
         return;
     case CMD_INVALID_CMD_NAME:
     case CMD_TOO_MANY_ARGS:
-    case CMD_INVALID_ARGUMENT:
+    case CMD_INVALID_ARG:
         {
-            fprintf(stderr, RED "COMPILATION ERROR\n" RESET);
-            fprintf(stderr, RED "line: %lu, error: %s\n" RESET, command->line, errorStr[cmdNum]);
+            fprintf(stderr, BOLD "%s:%lu: " RESET, ass->inputFileName, command->line);
+            fprintf(stderr, RED "error:" RESET BOLD " %s\n" RESET, errorStr[cmdNum]);
 
-            fprintf(stderr, MAGENTA "%lu " RESET, command->line); 
+            fprintf(stderr, MAGENTA "%lu | " RESET, command->line); 
             // Print the whole line.
             // This is neccessary because of the previous usage of strtok().
             size_t curStrAdress = (size_t) ass->inputText.line[command->line].str;
@@ -154,7 +182,6 @@ static void putCommandToBuffer(AssCommand* com, Assembler* ass)
                 if (com->hasReg)    DUMP_PRINT("reg = %s\n", com->reg);
                 if (com->hasNum)    DUMP_PRINT("num = %d\n", com->num);
 
-                //fwrite(&commandCode, sizeof(int), 1, file);
                 DUMP_PRINT("outputBuffer[%lu] = %d\n", ass->outputBufferPos, commandCode);
                 ass->outputBuffer[ass->outputBufferPos++] = commandCode;
 
@@ -166,8 +193,8 @@ static void putCommandToBuffer(AssCommand* com, Assembler* ass)
                     // On error.
                     if (regId == 0)
                     {
-                        com->error = CMD_INVALID_ARGUMENT;
-                        checkAssError(com, ass);                        
+                        com->error = CMD_INVALID_ARG;
+                        printAssError(com, ass);                        
                     }
 
                     DUMP_PRINT("outputBuffer[%lu] = %d\n", ass->outputBufferPos, regId);
@@ -176,7 +203,6 @@ static void putCommandToBuffer(AssCommand* com, Assembler* ass)
 
                 if (com->hasNum)    
                 {
-                    // fwrite(&com->num, sizeof(int), 1, file);
                     DUMP_PRINT("outputBuffer[%lu] = %d\n", ass->outputBufferPos, com->num);
                     ass->outputBuffer[ass->outputBufferPos++] = com->num;
                 }
@@ -186,7 +212,7 @@ static void putCommandToBuffer(AssCommand* com, Assembler* ass)
         }
     }
     com->error = CMD_INVALID_CMD_NAME;
-    checkAssError(com, ass);
+    printAssError(com, ass);
 }
 
 
@@ -250,7 +276,7 @@ static AssCommand getCommandFromLine(char* str, size_t line)
                 {
                     DUMP_PRINT("ERROR: NO SUCH COMMAND WAS FOUND!\n");
 
-                    command.error = CMD_INVALID_ARGUMENT;
+                    command.error = CMD_INVALID_ARG;
                     return command;                
                 }
                 break;
@@ -266,7 +292,7 @@ static AssCommand getCommandFromLine(char* str, size_t line)
                 {
                     DUMP_PRINT("ERROR!!!\n");
 
-                    command.error = CMD_INVALID_ARGUMENT;
+                    command.error = CMD_INVALID_ARG;
                     return command;                
                 }
                 break;
@@ -280,13 +306,6 @@ static AssCommand getCommandFromLine(char* str, size_t line)
         nWord++;
     }    
     return command;
-}
-
-
-static void printErrorMessage(size_t line, char* str)
-{
-    fprintf(stderr, "\t\tSyntax error at line %ld\n", line);
-    fprintf(stderr, "\t\t\t%s", str);
 }
 
 
@@ -313,16 +332,14 @@ AssemblerError textToAssembly(Assembler* ass, const char* outputFileName)
     }
 
 
-    for (size_t line = 0; line < ass->inputText.nLines; line++)
+    for (size_t nLine = 0; nLine < ass->inputText.nLines; nLine++)
     {
-        char* str = ass->inputText.line[line].str;
+        char* str = ass->inputText.line[nLine].str;
         deleteAssemblerComments(str);
 
-        DUMP_PRINT("Analysing line num: %ld\n", line);
+        DUMP_PRINT("Analysing line num: %ld\n", nLine);
 
-        AssCommand curCommand = getCommandFromLine(str, line);
-        checkAssError(&curCommand, ass);
-
+        AssCommand curCommand = getCommandFromLine(str, nLine);
         putCommandToBuffer(&curCommand, ass);
     }
     
@@ -353,6 +370,7 @@ AssemblerError AssInit(Assembler* ass, const char* inputFile)
     }
     ass->outputBuffer = temp;
     ass->outputBufferPos = 0lu;
+    ass->inputFileName = inputFile;
 
     return ASSEMBLER_NO_ERROR;
 }
