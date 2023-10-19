@@ -1,6 +1,5 @@
 #include "../include/assembler.h"
 
-const int ERROR_ID = -336;
 
 #define ASSEMBLER_DEBUG   
 
@@ -26,6 +25,30 @@ const int ERROR_ID = -336;
     #define IF_ASSEMBLER_DEBUG(...) do {} while(0)
 #endif
 
+#define CMD_DEFINE(DO)\
+    DO(CMD_NO_ERROR)\
+    DO(CMD_INVALID_CMD_NAME)\
+    DO(CMD_INVALID_ARGUMENT)\
+    DO(CMD_TOO_MANY_ARGS)
+
+
+#define GENERATE_ENUM(x) x,
+#define GENERATE_STR(x) #x,
+
+
+
+enum CommandError 
+{
+    CMD_DEFINE(GENERATE_ENUM)
+};
+
+
+static const char* errorStr[] = 
+{
+    CMD_DEFINE(GENERATE_STR)
+};
+
+
 
 struct AssCommand
 {
@@ -33,15 +56,19 @@ struct AssCommand
     char* reg;
     int num;
 
+    bool hasName;
     bool hasReg;
     bool hasNum;
+
+    size_t line;
+
+    CommandError error;
 };
 
 
-// struct AssCommandArray
-// {
-
-// };
+// The maximum amount of commands in the output file.
+// The size of the output buffer depends on this value.
+const size_t MAX_NUMBER_LINE_CMD = 3;
 
 
 static int getRegisterNum(char* reg)
@@ -58,14 +85,59 @@ static int getRegisterNum(char* reg)
 }
 
 
-static void putCommandToFile(const AssCommand* com, FILE* file)
+static void putBufferToFile(const Assembler* ass, FILE* outputFile)
+{
+    fwrite(ass->outputBuffer, ass->outputBufferPos, sizeof(int), outputFile);
+}
+
+
+static void checkAssError(const AssCommand* command, Assembler* ass)
+{
+    if (command->error == CMD_NO_ERROR) return; 
+    
+    int cmdNum = (int) command->error; 
+
+    switch (command->error)
+    {
+    case CMD_NO_ERROR:
+        return;
+    case CMD_INVALID_CMD_NAME:
+    case CMD_TOO_MANY_ARGS:
+    case CMD_INVALID_ARGUMENT:
+        {
+            fprintf(stderr, RED "COMPILATION ERROR\n" RESET);
+            fprintf(stderr, RED "line: %lu, error: %s\n" RESET, command->line, errorStr[cmdNum]);
+
+            fprintf(stderr, MAGENTA "%lu " RESET, command->line); 
+            // Print the whole line.
+            // This is neccessary because of the previous usage of strtok().
+            size_t curStrAdress = (size_t) ass->inputText.line[command->line].str;
+            size_t nextStrAdress =  (size_t) ass->inputText.line[command->line + 1].str;
+            for (size_t i = 0; i < nextStrAdress - curStrAdress; i++)
+            {
+                char chr = * (char*) (curStrAdress + i);
+                if (chr == '\0') chr = ' ';     
+                fprintf(stderr, YELLOW "%c" RESET, chr);            
+            }
+
+            fprintf(stderr, YELLOW "\n\"%s\"\n" RESET, ass->inputText.line[command->line].str);
+            break;
+        }
+    default:
+        DUMP_PRINT("UNKNOWN ERROR");
+        break;
+    }
+}
+
+
+static void putCommandToBuffer(AssCommand* com, Assembler* ass)
 {
     DUMP_PRINT("putCommandToFile(%s, %s, %d)\n", com->name, com->reg, com->num);
     for (size_t i = 0; i < AMOUNT_OF_COMMANDS; i++)
     {
         if (strcasecmp(com->name, COMMANDS[i].name) == 0)
         {
-            // Copy the command id.
+            // Copy the command id. 
             int commandCode = (int) COMMANDS[i].code & COM_COMMAND_BITS;
             // Set the reg.
             if (com->hasReg)             commandCode |= COM_REGISTER_BIT;
@@ -76,37 +148,147 @@ static void putCommandToFile(const AssCommand* com, FILE* file)
             if (commandCode == COMMANDS[i].code)
             {
                 DUMP_PRINT("Command ID is: %d\n", commandCode);
-                DUMP_PRINT("PUTTING TO THE FILE\n");
+                DUMP_PRINT("PUTTING TO THE BUFFER\n");
                 DUMP_PRINT("name = %s\n", com->name);
 
                 if (com->hasReg)    DUMP_PRINT("reg = %s\n", com->reg);
                 if (com->hasNum)    DUMP_PRINT("num = %d\n", com->num);
 
-                fwrite(&commandCode, sizeof(int), 1, file);
+                //fwrite(&commandCode, sizeof(int), 1, file);
+                DUMP_PRINT("outputBuffer[%lu] = %d\n", ass->outputBufferPos, commandCode);
+                ass->outputBuffer[ass->outputBufferPos++] = commandCode;
+
 
                 if (com->hasReg)
                 {
                     int regId = getRegisterNum(com->reg);
-                    fwrite(&regId, sizeof(int), 1, file);
+                    
+                    // On error.
+                    if (regId == 0)
+                    {
+                        com->error = CMD_INVALID_ARGUMENT;
+                        checkAssError(com, ass);                        
+                    }
+
+                    DUMP_PRINT("outputBuffer[%lu] = %d\n", ass->outputBufferPos, regId);
+                    ass->outputBuffer[ass->outputBufferPos++] = regId;
                 }
 
                 if (com->hasNum)    
                 {
-                    fwrite(&com->num, sizeof(int), 1, file);
+                    // fwrite(&com->num, sizeof(int), 1, file);
+                    DUMP_PRINT("outputBuffer[%lu] = %d\n", ass->outputBufferPos, com->num);
+                    ass->outputBuffer[ass->outputBufferPos++] = com->num;
                 }
 
                 return;
             }
         }
     }
-    
+    com->error = CMD_INVALID_CMD_NAME;
+    checkAssError(com, ass);
 }
+
+
+static AssCommand getCommandFromLine(char* str, size_t line)
+{
+    AssCommand command = 
+    {
+        .name = NULL,
+        .reg = NULL,
+        .num = 0,
+        
+        .hasName = false,
+        .hasReg = false,
+        .hasNum = false,
+
+        .line = line,
+
+        .error = CMD_NO_ERROR,
+    };
+
+    IF_ASSEMBLER_DEBUG(fprintf(stderr, "\n"));
+    DUMP_PRINT("string: <%s>\n", str);
+    size_t nWord = 0;
+    char* word = strtok(str, " ");
+    while (word) 
+    {
+        switch (nWord)
+        {
+            case 0:
+                if (isalpha(word[0]))
+                {
+                    DUMP_PRINT("word <%s> number %ld is a WORD\n", word, nWord);
+                    
+                    command.name = word;
+                    command.hasName = true;
+                }
+                else
+                {
+                    DUMP_PRINT("ERROR!!!\n");
+                    
+                    command.error = CMD_INVALID_CMD_NAME;
+                    return command;                
+                }
+                break;
+            case 1:
+                if (isalpha(word[0]))
+                {
+                    DUMP_PRINT("word <%s> number %ld is a WORD\n", word, nWord);
+                                        
+                    command.reg = word;
+                    command.hasReg = true;
+                }
+                else if (isdigit(word[0]))
+                {
+                    DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, command.num);
+                    
+                    command.num = atoi(word);
+                    command.hasNum = true;
+                }
+                else    
+                {
+                    DUMP_PRINT("ERROR: NO SUCH COMMAND WAS FOUND!\n");
+
+                    command.error = CMD_INVALID_ARGUMENT;
+                    return command;                
+                }
+                break;
+            case 2:
+                if (isdigit(word[0]))
+                {
+                    DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, command.num);
+                    
+                    command.num = atoi(word);
+                    command.hasNum = true;
+                }
+                else    
+                {
+                    DUMP_PRINT("ERROR!!!\n");
+
+                    command.error = CMD_INVALID_ARGUMENT;
+                    return command;                
+                }
+                break;
+            default:
+                DUMP_PRINT("ERROR: TOO MANY ARGUMENTS!\n");
+
+                command.error = CMD_TOO_MANY_ARGS;
+                return command;
+        }
+        word = strtok(NULL, " ");
+        nWord++;
+    }    
+    return command;
+}
+
 
 static void printErrorMessage(size_t line, char* str)
 {
     fprintf(stderr, "\t\tSyntax error at line %ld\n", line);
     fprintf(stderr, "\t\t\t%s", str);
 }
+
 
 inline static void deleteAssemblerComments(char* str)
 {
@@ -115,10 +297,12 @@ inline static void deleteAssemblerComments(char* str)
         *commentPtr = '\0';
 }
 
-
-AssemblerError textToAssembly(Text* txt, const char* outputFileName)
+AssemblerError textToAssembly(Assembler* ass, const char* outputFileName)
 {
     DUMP_PRINT("TEXT TO ASSEMBLY STARTED\n");
+    
+    assert(ass);
+    assert(outputFileName);
     
     FILE* outputFile = fopen(outputFileName, "wb");
     if (outputFile == NULL)
@@ -128,88 +312,59 @@ AssemblerError textToAssembly(Text* txt, const char* outputFileName)
         return ASSEMBLER_OPEN_FILE_ERROR;
     }
 
-    assert(txt);
-    assert(outputFile);
 
-    for (size_t i = 0; i < txt->nLines; i++)
+    for (size_t line = 0; line < ass->inputText.nLines; line++)
     {
-        char* str = txt->line[i].str;
+        char* str = ass->inputText.line[line].str;
+        deleteAssemblerComments(str);
 
-        AssCommand curCommand= 
-        {
-            .name = NULL,
-            .reg = NULL,
-            .num = 0,
+        DUMP_PRINT("Analysing line num: %ld\n", line);
 
-            .hasReg = false,
-            .hasNum = false,
-        };
+        AssCommand curCommand = getCommandFromLine(str, line);
+        checkAssError(&curCommand, ass);
 
-        IF_ASSEMBLER_DEBUG(fprintf(stderr, "\n"));
-        DUMP_PRINT("Analysing line num: %ld\n", i);
-        DUMP_PRINT("string: <%s>\n", str);
-
-        size_t nWord = 0;
-        char* word = strtok(str, " ");
-        while (word) 
-        {
-            switch (nWord)
-            {
-                case 0:
-                    if (isalpha(word[0]))
-                    {
-                                            DUMP_PRINT("word <%s> number %ld is a WORD\n", word, nWord);
-                        curCommand.name = word;
-                    }
-                    else
-                    {
-                                            DUMP_PRINT("ERROR!!!\n");
-                        return ASSEMBLER_NO_SUCH_COMMAND;                
-                    }
-                    break;
-                case 1:
-                    if (isalpha(word[0]))
-                    {
-                        curCommand.reg = word;
-                        curCommand.hasReg = true;
-                                            DUMP_PRINT("word <%s> number %ld is a WORD\n", word, nWord);
-                    }
-                    else if (isdigit(word[0]))
-                    {
-                        curCommand.num = atoi(word);
-                        curCommand.hasNum = true;
-                                            DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, curCommand.num);
-                    }
-                    else    
-                    {
-                                            DUMP_PRINT("ERROR: NO SUCH COMMAND WAS FOUND!\n");
-                        return ASSEMBLER_NO_SUCH_COMMAND;                
-                    }
-                    break;
-                case 2:
-                    if (isdigit(word[0]))
-                    {
-                        curCommand.num = atoi(word);
-                        curCommand.hasNum = true;
-                                            DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, curCommand.num);
-                    }
-                    else    
-                    {
-                                            DUMP_PRINT("ERROR!!!\n");
-                        return ASSEMBLER_NO_SUCH_COMMAND;                
-                    }
-                    break;
-                default:
-                                        DUMP_PRINT("ERROR: TOO MANY ARGUMENTS!\n");
-                    return ASSEMBLER_NO_SUCH_COMMAND;
-                    break;
-            }
-            word = strtok(NULL, " ");
-            nWord++;
-        }
-        putCommandToFile(&curCommand, outputFile);
+        putCommandToBuffer(&curCommand, ass);
     }
     
+    putBufferToFile(ass, outputFile);
+    return ASSEMBLER_NO_ERROR;
+}
+
+
+AssemblerError AssInit(Assembler* ass, const char* inputFile)
+{
+    assert(ass);
+    assert(inputFile);
+
+    // Initialize input Text from the file.  
+    ParseError error = textInit(inputFile, &ass->inputText);
+    if (error != PARSE_NO_ERROR)
+    {
+        DUMP_PRINT("ERROR! INITIALIZATION TEXT ERROR\n");
+        return ASSEMBLER_PARSE_ERROR;
+    }
+
+    // Initialize output Buffer.
+    int* temp = (int*) calloc(ass->inputText.nLines, MAX_NUMBER_LINE_CMD * sizeof(int));
+    if (temp == NULL)
+    {
+        DUMP_PRINT("ERROR! ERROR ALLOCATING MEMORY\n");
+        return ASSEMBLER_ALLOCATION_ERROR;
+    }
+    ass->outputBuffer = temp;
+    ass->outputBufferPos = 0lu;
+
+    return ASSEMBLER_NO_ERROR;
+}
+
+
+AssemblerError AssDtor(Assembler* ass)
+{
+    assert(ass);
+    assert(ass->outputBuffer);
+
+    textDtor(&ass->inputText);
+    free(ass->outputBuffer);
 
     return ASSEMBLER_NO_ERROR;
 }

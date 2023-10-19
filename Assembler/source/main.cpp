@@ -29,9 +29,14 @@ do\
 
 int main()
 {
-    Text txt = {};
-    CHECK_PARSING_ERROR  (     textInit(INPUT_FILE_NAME, &txt)            );
-    CHECK_ASSEMBLER_ERROR(     textToAssembly(&txt, OUTPUT_FILE_NAME)     );
+    Assembler ass = {};
+ 
+    // CHECK_ASSEMBLER_ERROR(     AssInit(&ass, INPUT_FILE_NAME)             );
+    // CHECK_ASSEMBLER_ERROR(     textToAssembly(&ass, OUTPUT_FILE_NAME)     );
+    // CHECK_ASSEMBLER_ERROR(     AssDtor(&ass)                              );
 
-    textDtor(&txt);
+    AssInit(&ass, INPUT_FILE_NAME);
+    textToAssembly(&ass, OUTPUT_FILE_NAME);
+    AssDtor(&ass);       
+
 }

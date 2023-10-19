@@ -4,17 +4,30 @@
 #include <assert.h>
 #include "../../lib/parse.h"
 #include "../../commands.h"
+#include "colors.h"
 
 const int ASSEMBLER_POISON = INT_MIN;
-#define ASSEMBLER_
+
+struct Assembler
+{
+    Text inputText;
+    int* outputBuffer;
+    size_t outputBufferPos;
+};
 
 enum AssemblerError
 {
     ASSEMBLER_NO_ERROR,
     ASSEMBLER_NO_SUCH_COMMAND,
     ASSEMBLER_OPEN_FILE_ERROR,
+    ASSEMBLER_PARSE_ERROR,
+    ASSEMBLER_ALLOCATION_ERROR,
 };
 
-AssemblerError textToAssembly(Text* txt, const char* outputFileName);
+AssemblerError textToAssembly(Assembler* ass, const char* outputFileName);
+
+AssemblerError AssInit(Assembler* ass, const char* inputFile);
+
+AssemblerError AssDtor(Assembler* ass); // ASS DESTRUCTOR
 
 #endif
