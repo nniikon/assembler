@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <math.h>
 
-#include "config.h"
+#include "stack_config.h"
 // SETTINGS
 
 #define ERROR_NAME(func)\

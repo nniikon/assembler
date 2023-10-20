@@ -15,7 +15,8 @@ DEF_CMD(SQRT, 0b000'01000, 0, 0, sqrt        )
 DEF_CMD(SIN,  0b000'01001, 0, 0, sin         )
 DEF_CMD(COS,  0b000'01010, 0, 0, cos         )
 DEF_CMD(POP,  0b010'01011, 1, 0, pop         )
-DEF_CMD(HLT,  0b000'11111, 0, 0, HLT         )
+DEF_CMD(JUMP, 0b001'01100, 0, 1, jump        )
+DEF_CMD(HLT,  0b000'11111, 0, 0, hlt         )
 
 
 // BYTE-CODE STRUCTURE

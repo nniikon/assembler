@@ -28,7 +28,6 @@ do                                 \
 /*
 TODO:
 rename config.h
-Rename stack errors
 */
 int main()
 {      
@@ -46,8 +45,11 @@ int main()
 
     spuInit(&spu, buffer);
 
-    execProgram(&spu);
-    
+    if (execProgram(&spu) == SPU_NO_ERROR)
+    {
+        fprintf(stderr, "NO ERROR OCCURRED\n");
+    }
+    stackDump(&spu.stack, STACK_NO_ERROR);
     spuDtor(&spu);
 
 

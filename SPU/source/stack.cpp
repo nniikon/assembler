@@ -338,8 +338,6 @@ StackError stackDtor(Stack* stk)
 
     freeData(stk);
 
-    CHECK_DATA_HASH_RETURN_ERROR(stk);
-
     #ifndef RELEASE
 
     for (int i = 0; i < stk->capacity; i++)

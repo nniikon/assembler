@@ -305,17 +305,28 @@ static void pop(SPU* spu)
     spu->curCommand += 2;
 }
 
-static void HLT(SPU* spu)
+static void jump(SPU* spu)
 {
-    DUMP_PRINT("HLT( buffer <%p>)\n", spu->curCommand);
-    exit(0); // CRINGE FIX TODO: FIX CRINGE 
+    DUMP_PRINT("jump( buffer <%p>, num <%d>)\n", spu->curCommand, *(spu->curCommand + 1));
+
+
+    DUMP_SPU();
+    spu->curCommand = spu->commands + (*(spu->curCommand + 1) / FLOATING_POINTER_COEFFICIENT); // TEMPERARY CRINGE
 }
+
+
+#define hlt(spu)\
+{\
+    DUMP_PRINT("HLT( buffer <%p>)\n", spu->curCommand);\
+    DUMP_SPU();\
+    return SPU_NO_ERROR;\
+}
+
 
 
 
 SPU_Error execProgram(SPU* spu)
 {
-    //  SIZE IS IN BYTES!!!!!!!!!!!!!!!!!!!
     DUMP_PRINT("execProgram( buffer <%p> )\n", spu->curCommand);
 
     while (true)
@@ -347,6 +358,7 @@ SPU_Error spuInit(SPU* spu, int* commandsArr)
 
     // SPU init.
     spu->curCommand = commandsArr;
+    spu->commands   = commandsArr;
     
     for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
         spu->reg[i] = REG_POISON;
@@ -376,12 +388,13 @@ SPU_Error spuDtor(SPU* spu)
 
     // Poison the SPU.
     spu->curCommand = NULL;
+    spu->commands   = NULL;
 
     for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
         spu->reg[i] = REG_POISON;
 
     // Destruct the stack.
-    StackError stackError = stackDtor(&spu->stack);
+    StackError stackError = stackDtor(&(spu->stack));
     if (stackError != STACK_NO_ERROR)
     {
         DUMP_PRINT("Stack Error occured:\n");

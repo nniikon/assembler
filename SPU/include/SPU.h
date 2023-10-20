@@ -13,6 +13,7 @@ struct SPU
     Stack stack;
     int reg[AMOUNT_OF_REGISTERS];
     int* curCommand;
+    int* commands;
 };
 
 
