@@ -5,15 +5,26 @@
 #include "../../lib/parse.h"
 #include "../../CPU_common.h"
 #include "colors.h"
+#include "ass_config.h"
+#include "stringOperations.h"
 
-const int ASSEMBLER_POISON = INT_MIN;
+struct Label
+{
+    char* name;
+    size_t len;
+    int adress;
+};
 
 struct Assembler
 {
     Text inputText;
     const char* inputFileName;
-    int* outputBuffer;
+    
+    u_int8_t* outputBuffer;
     size_t outputBufferPos;
+
+    Label labels[MAX_NUMBER_OF_LABELS];
+    size_t emptyLabel;
 };
 
 enum AssemblerError
@@ -25,7 +36,7 @@ enum AssemblerError
     ASSEMBLER_ALLOCATION_ERROR,
 };
 
-AssemblerError textToAssembly(Assembler* ass, const char* outputFileName);
+Assembler assembly(Assembler* ass, FILE* outputFile);
 
 AssemblerError AssInit(Assembler* ass, const char* inputFile);
 

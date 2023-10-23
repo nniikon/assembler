@@ -27,6 +27,8 @@ do\
     }\
 } while (0)
 
+
+
 int main()
 {
     Assembler ass = {};
@@ -34,9 +36,18 @@ int main()
     // CHECK_ASSEMBLER_ERROR(     AssInit(&ass, INPUT_FILE_NAME)             );
     // CHECK_ASSEMBLER_ERROR(     textToAssembly(&ass, OUTPUT_FILE_NAME)     );
     // CHECK_ASSEMBLER_ERROR(     AssDtor(&ass)                              );
+    
+    // Open the output file.
+    FILE* outputFile = fopen(OUTPUT_FILE_NAME, "wb");
+    if (outputFile == NULL)
+    {
+        fprintf(stderr, "failed to open %s\n", OUTPUT_FILE_NAME);
+        
+        return ASSEMBLER_OPEN_FILE_ERROR;
+    }
 
     AssInit(&ass, INPUT_FILE_NAME);
-    textToAssembly(&ass, OUTPUT_FILE_NAME);
+    assembly(&ass, outputFile);
     AssDtor(&ass);       
 
 }

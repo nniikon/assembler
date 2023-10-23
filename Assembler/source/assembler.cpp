@@ -46,13 +46,10 @@ static const char* errorStr[] =
 
 struct AssCommand
 {
-    char* name;
-    char* reg;
-    int num;
-
-    bool hasName;
     bool hasReg;
     bool hasNum;
+    bool hasLabel;
+    bool hasMem;
 
     size_t line;
 
@@ -60,14 +57,19 @@ struct AssCommand
 };
 
 
-// The maximum amount of commands in the output file.
-// The size of the output buffer depends on this value.
-const size_t MAX_NUMBER_LINE_CMD = 3;
+struct AssError
+{
+    CommandError err;
+    size_t line;
+};
 
-/**
- * @brief Returns a register ID by it's name.
-*/
-static int getRegisterNum(char* reg);
+
+// The minimum number of compilations needed. 
+const int NUMBER_OF_COMPILATIONS = 2;
+
+const size_t LABLE_POISON = -1;
+
+
 
 /**
  * @brief Puts byte code into the given file.
@@ -84,261 +86,314 @@ static void printAssError(const AssCommand* command, Assembler* ass);
  */
 static void putCommandToBuffer(AssCommand* com, Assembler* ass);
 
-/**
- * @brief Returns a pointer to the AssCommand set by the given string. May print error.
- */
-static AssCommand getCommandFromLine(char* str, size_t line);
 
+static void setLabels(Assembler* ass);
 
-static int getRegisterNum(char* reg)
-{
-    for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
-    {
-        if (strcmp(reg, REGS[i].name) == 0)
-        {
-            DUMP_PRINT("register id = %d\n", REGS[i].id);
-            return REGS[i].id;
-        }
-    }
-    return 0;
-}
 
 
 static void putBufferToFile(const Assembler* ass, FILE* outputFile)
 {
-    fwrite(ass->outputBuffer, ass->outputBufferPos, sizeof(int), outputFile);
+    fwrite(ass->outputBuffer, ass->outputBufferPos, sizeof(char), outputFile);
 }
 
 
-static void printAssError(const AssCommand* command, Assembler* ass)
+
+static CommandError putCommandNameToBuffer(char** str, Assembler* ass)
+{
+    assert(str);
+    assert(ass);
+
+    DUMP_PRINT("Setting command name:\n");
+    size_t size = 0;
+    char delim = getWordSize(&size, *str, " ");
+
+    for (size_t com = 0; com < AMOUNT_OF_COMMANDS; com++)
+    {
+        if (strncasecmp(*str, COMMANDS[com].name, size) == 0)
+        {
+            ass->outputBuffer[ass->outputBufferPos] = COMMANDS[com].code;
+            ass->outputBufferPos += sizeof(u_int8_t);
+
+            DUMP_PRINT("Command name: <%s>\n", COMMANDS[com].name);
+            DUMP_PRINT("Command code: <%d>\n", COMMANDS[com].code & COM_COMMAND_BITS);
+            
+            if (delim == '\0') 
+                *str = NULL;
+            else
+                *str += size + 1;
+
+            return CMD_NO_ERROR;
+        }
+    }
+    return CMD_INVALID_CMD_NAME;
+}
+
+
+static void setLabelName(char* str, Assembler* ass)
+{
+    assert(str);
+    assert(ass);
+
+    DUMP_PRINT("Setting label name:\n");
+    size_t size = 0;
+    getWordSize(&size,  str, ":");
+
+    ass->labels[ass->emptyLabel].adress = (int) ass->outputBufferPos;
+    ass->labels[ass->emptyLabel].len = size; // without :
+    ass->labels[ass->emptyLabel].name = str;
+
+    DUMP_PRINT("Label   size: <%zu>\n", ass->labels[ass->emptyLabel].len);
+    DUMP_PRINT("Label   name: <%.*s>\n", (int) ass->labels[ass->emptyLabel].len, ass->labels[ass->emptyLabel].name); 
+    DUMP_PRINT("Label adress: <%d>\n", ass->labels[ass->emptyLabel].adress);
+    
+    (ass->emptyLabel)++;
+}
+
+
+// This function is needed to get the label names.
+// And not to set the adresses.
+// This function also sets outputBufferPos to zero.
+static void setLabels(Assembler* ass)
+{
+    assert(ass);
+
+    IF_ASSEMBLER_DEBUG(putc('\n', stderr));
+    DUMP_PRINT("setLabels started\n");
+    for (size_t line = 0; line < ass->inputText.nLines; line++)
+    {   
+        char* str = ass->inputText.line[line].str;
+
+        CommandError err = CMD_NO_ERROR;
+
+        ass->outputBufferPos = LABLE_POISON;
+
+        if (strchr(str, ':') != NULL)
+        {
+            setLabelName(str, ass);
+
+            continue;
+        }
+
+        ass->outputBufferPos = 0;
+    }
+    DUMP_PRINT("setLabels successful\n");
+    
+}
+
+
+static bool putRegToBuffer(char** str, Assembler* ass)
+{
+    size_t size = 0;
+    char del = getWordSize(&size, *str, " ]");
+    
+    if (size != REGISTER_LENGTH) 
+        return false;
+
+    for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
+    {
+        if (strncasecmp(*str, REGS[i].name, size) == 0)
+        {
+            DUMP_PRINT("\"%.*s\"\n", (int)size, *str);
+            DUMP_PRINT("Register <%s>\n", REGS[i].name);
+            DUMP_PRINT("id = <%d>\n", (int) REGS[i].id);
+
+            ass->outputBuffer[ass->outputBufferPos] = REGS[i].id;
+            ass->outputBufferPos += sizeof(u_int8_t);
+
+            if (del == '\0' || del == ']')
+                *str = NULL;
+            else
+                *str += size + 1;
+            return true;
+        }
+    }
+    return false;
+}
+
+
+static bool putLabelToBuffer(char** str, Assembler* ass)
+{
+    size_t size = 0;
+    char del = getWordSize(&size, *str, " ]");
+
+    for (size_t i = 0; i < MAX_NUMBER_OF_LABELS; i++)
+    {
+        if (size != ass->labels[i].len)
+            continue;
+        
+        if (strncasecmp(*str, ass->labels[i].name, size) == 0)
+        {
+            DUMP_PRINT("\"%.*s\"\n", (int)size, *str);
+            DUMP_PRINT("Label <%s>\n", ass->labels[i].name);
+            DUMP_PRINT("Adress = <%d>\n", (int)ass->labels[i].adress);
+
+            memcpy(ass->outputBuffer + ass->outputBufferPos, &(ass->labels[i].adress), sizeof(int));
+            ass->outputBufferPos += sizeof(int);
+
+            if (del == '\0' || del == ']')
+                *str = NULL;
+            else
+                *str += size + 1;
+            return true;
+        }
+    }
+    return false;
+}
+
+
+static bool putNumberToBuffer(char** str, Assembler* ass)
+{
+    size_t size = 0;
+    char del = getWordSize(&size, *str, " ]");
+
+    for (size_t i = 0; i < size; i++)
+    {
+        if (isdigit((*str)[i]) == 0)
+            return false;
+    }
+    int num = atoi(*str);
+
+    DUMP_PRINT("\"%.*s\"\n", (int)size, *str);
+    DUMP_PRINT("number: <%d>\n", num);
+
+    memcpy(ass->outputBuffer + ass->outputBufferPos, &num, sizeof(int));
+    ass->outputBufferPos += sizeof(int);
+
+    if (del == '\0' || del == ']')
+        *str = NULL;
+    else
+        *str += size + 1;
+
+    return false;
+}
+
+
+static void setArgs(char** str, Assembler* ass, AssCommand* command)
+{
+    if (*str == NULL) return;
+
+    assert(str);
+    assert(ass);
+    assert(command);
+
+    DUMP_PRINT("setArgs started with <%s>\n", *str);
+
+    // If the first character is a letter, treat it as a word. 
+    if (isalpha((*str)[0]))
+    {
+        if (putRegToBuffer(str, ass))
+        {
+            command->hasReg = true;
+            return setArgs(str, ass, command);
+        }    
+        if (putLabelToBuffer(str, ass))
+        {
+            command->hasLabel = true;
+            return setArgs(str, ass, command);
+        }    
+    }
+    else if ((*str)[0] == '[')
+    {
+        command->hasMem = true;
+        *str += 1;
+        return setArgs(str, ass, command);
+    }
+    else
+    {
+        if (putNumberToBuffer(str, ass)) 
+        {
+            command->hasNum = true;
+            return setArgs(str, ass, command);
+        }
+    }
+
+    DUMP_PRINT("setArgs successful\n");
+}
+
+
+static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos)
 {
     assert(command);
     assert(ass);
-    if (command->error == CMD_NO_ERROR) return; 
-    
-    int cmdNum = (int) command->error;
 
-    fprintf(stderr, BOLD "%s:%lu: " RESET, ass->inputFileName, command->line);
-    fprintf(stderr, RED "error:" RESET BOLD " %s" RESET, errorStr[cmdNum]);
+    DUMP_PRINT("Started adjusting command code\n");
 
-    char* errorWord = NULL;
+    if (command->hasLabel) ass->outputBuffer[pos] |= COM_IMMEDIATE_BIT;
+    if (command->hasMem  ) ass->outputBuffer[pos] |= COM_MEMORY_BIT;
+    if (command->hasNum  ) ass->outputBuffer[pos] |= COM_IMMEDIATE_BIT;
+    if (command->hasReg  ) ass->outputBuffer[pos] |= COM_REGISTER_BIT;
 
-    switch (command->error)
-    {
-        case CMD_INVALID_CMD_NAME:  errorWord = command->name;  break;
-        case CMD_TOO_MANY_ARGS:     errorWord = NULL;           break;
-        case CMD_INVALID_ARG:       errorWord = command->reg;   break;
-
-        case CMD_NO_ERROR:
-        default:
-            DUMP_PRINT("UNKNOWN ERROR");
-            break;
-    }
-    
-    if (errorWord != NULL) fprintf(stderr, CYAN " \"%s\"\n" RESET, errorWord);
-
-    fprintf(stderr, MAGENTA "\t\t%lu | " RESET, command->line); 
-    // Print the whole line.
-    // This is neccessary because of the previous usage of strtok().
-    size_t curStrAdress = (size_t) ass->inputText.line[command->line].str;
-    size_t nextStrAdress =  (size_t) ass->inputText.line[command->line + 1].str;
-    for (size_t i = 0; i < nextStrAdress - curStrAdress; i++)
-    {
-        char chr = * (char*) (curStrAdress + i);
-        if (chr == '\0') chr = ' ';     
-        fprintf(stderr, YELLOW "%c" RESET, chr);            
-    }
-    putc('\n', stderr);
+    DUMP_PRINT("Adjustment success\n");
 }
 
 
-static void putCommandToBuffer(AssCommand* com, Assembler* ass)
+AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
 {
-    DUMP_PRINT("putCommandToFile(%s, %s, %d)\n", com->name, com->reg, com->num);
-    for (size_t i = 0; i < AMOUNT_OF_COMMANDS; i++)
-    {
-        if (strcasecmp(com->name, COMMANDS[i].name) == 0)
-        {
-            // Copy the command id. 
-            int commandCode = (int) COMMANDS[i].code & COM_COMMAND_BITS;
-            // Set the reg.
-            if (com->hasReg)             commandCode |= COM_REGISTER_BIT;
-            // Set the imm.
-            if (com->hasNum)             commandCode |= COM_IMMEDIATE_BIT; 
-
-
-            if (commandCode == COMMANDS[i].code)
-            {
-                DUMP_PRINT("Command ID is: %d\n", commandCode);
-                DUMP_PRINT("PUTTING TO THE BUFFER\n");
-                DUMP_PRINT("name = %s\n", com->name);
-
-                if (com->hasReg)    DUMP_PRINT("reg = %s\n", com->reg);
-                if (com->hasNum)    DUMP_PRINT("num = %d\n", com->num);
-
-                DUMP_PRINT("outputBuffer[%lu] = %d\n", ass->outputBufferPos, commandCode);
-                ass->outputBuffer[ass->outputBufferPos++] = commandCode;
-
-
-                if (com->hasReg)
-                {
-                    int regId = getRegisterNum(com->reg);
-                    
-                    // On error.
-                    if (regId == 0)
-                    {
-                        com->error = CMD_INVALID_ARG;
-                        printAssError(com, ass);                        
-                    }
-
-                    DUMP_PRINT("outputBuffer[%lu] = %d\n", ass->outputBufferPos, regId);
-                    ass->outputBuffer[ass->outputBufferPos++] = regId;
-                }
-
-                if (com->hasNum)    
-                {
-                    DUMP_PRINT("outputBuffer[%lu] = %d\n", ass->outputBufferPos, com->num);
-                    ass->outputBuffer[ass->outputBufferPos++] = com->num;
-                }
-
-                return;
-            }
-        }
-    }
-    com->error = CMD_INVALID_CMD_NAME;
-    printAssError(com, ass);
-}
-
-
-static AssCommand getCommandFromLine(char* str, size_t line)
-{
-    AssCommand command = 
-    {
-        .name = NULL,
-        .reg = NULL,
-        .num = 0,
-        
-        .hasName = false,
-        .hasReg = false,
-        .hasNum = false,
-
-        .line = line,
-
-        .error = CMD_NO_ERROR,
-    };
-
-    IF_ASSEMBLER_DEBUG(fprintf(stderr, "\n"));
-    DUMP_PRINT("string: <%s>\n", str);
-    size_t nWord = 0;
-    char* word = strtok(str, " ");
-    while (word) 
-    {
-        switch (nWord)
-        {
-            case 0:
-                if (isalpha(word[0]))
-                {
-                    DUMP_PRINT("word <%s> number %ld is a WORD\n", word, nWord);
-                    
-                    command.name = word;
-                    command.hasName = true;
-                }
-                else
-                {
-                    DUMP_PRINT("ERROR!!!\n");
-                    
-                    command.error = CMD_INVALID_CMD_NAME;
-                    return command;                
-                }
-                break;
-            case 1:
-                if (isalpha(word[0]))
-                {
-                    DUMP_PRINT("word <%s> number %ld is a WORD\n", word, nWord);
-                                        
-                    command.reg = word;
-                    command.hasReg = true;
-                }
-                else if (isdigit(word[0]))
-                {
-                    DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, command.num);
-                    
-                    command.num = (int) (atof(word) * FLOATING_POINTER_COEFFICIENT);
-                    command.hasNum = true;
-                }
-                else    
-                {
-                    DUMP_PRINT("ERROR: NO SUCH COMMAND WAS FOUND!\n");
-
-                    command.error = CMD_INVALID_ARG;
-                    return command;                
-                }
-                break;
-            case 2:
-                if (isdigit(word[0]))
-                {
-                    DUMP_PRINT("word <%s> number %ld is a NUMBER %d\n", word, nWord, command.num);
-                    
-                    command.num = (int) (atof(word) * FLOATING_POINTER_COEFFICIENT);
-                    command.hasNum = true;
-                }
-                else    
-                {
-                    DUMP_PRINT("ERROR!!!\n");
-
-                    command.error = CMD_INVALID_ARG;
-                    return command;                
-                }
-                break;
-            default:
-                DUMP_PRINT("ERROR: TOO MANY ARGUMENTS!\n");
-
-                command.error = CMD_TOO_MANY_ARGS;
-                return command;
-        }
-        word = strtok(NULL, " ");
-        nWord++;
-    }    
-    return command;
-}
-
-
-inline static void deleteAssemblerComments(char* str)
-{
-    char* commentPtr = strchr(str, ';');
-    if (commentPtr != NULL)
-        *commentPtr = '\0';
-}
-
-AssemblerError textToAssembly(Assembler* ass, const char* outputFileName)
-{
-    DUMP_PRINT("TEXT TO ASSEMBLY STARTED\n");
-    
     assert(ass);
-    assert(outputFileName);
+    assert(outputFile);
     
-    FILE* outputFile = fopen(outputFileName, "wb");
-    if (outputFile == NULL)
-    {
-        DUMP_PRINT("failed to open %s", outputFileName);
+    DUMP_PRINT("TEXT TO ASSEMBLY STARTED\n");
+
+    for (size_t line = 0; line < ass->inputText.nLines; line++)
+    {   
+        char* str = ass->inputText.line[line].str;
+        if (str[0] == '\0' || str[0] == '\n') continue; // TODO: fix
+
+        IF_ASSEMBLER_DEBUG(fputc('\n', stderr));
+        DUMP_PRINT("Analysing line num: %ld\n", line);
+        DUMP_PRINT("<%s>\n", str);
+
+        AssCommand command = 
+        {
+            .hasReg = false,
+            .hasNum = false,
+            .hasLabel = false,
+            .hasMem = false,
+
+            .line = line,
+
+            .error = CMD_NO_ERROR,
+        };
+        size_t nameBufferPos = ass->outputBufferPos;
+
+        CommandError err = CMD_NO_ERROR;
+        if (strchr(str, ':') != NULL)
+        {
+            
+            setLabelName(str, ass);
+            continue;
+        }
+        else
+        {
+            putCommandNameToBuffer(&str, ass);
+        }
+        setArgs(&str, ass, &command);
+
+        adjustCommandCode(&command, ass, nameBufferPos);
+        // putCommandToBuffer(&command, ass);
+
+        // fprintf(stderr, "===========\n");
+        // for (size_t i = 0; i < ass->emptyLabel; i++)
+        // {
+        //     fprintf(stderr, "adress[%d] = <%d>\n", i, ass->labels[i].adress);
+        // }
         
-        return ASSEMBLER_OPEN_FILE_ERROR;
-    }
-
-
-    for (size_t nLine = 0; nLine < ass->inputText.nLines; nLine++)
-    {
-        char* str = ass->inputText.line[nLine].str;
-        deleteAssemblerComments(str); // TODO: fix error output
-
-        DUMP_PRINT("Analysing line num: %ld\n", nLine);
-
-        AssCommand curCommand = getCommandFromLine(str, nLine);
-        putCommandToBuffer(&curCommand, ass);
     }
     
-    putBufferToFile(ass, outputFile);
     return ASSEMBLER_NO_ERROR;
+}
+
+
+Assembler assembly(Assembler* ass, FILE* outputFile)
+{
+    setLabels(ass);
+    for (int i = 0; i < NUMBER_OF_COMPILATIONS; i++)
+    {
+        ass->emptyLabel = 0;
+        ass->outputBufferPos = 0;
+        textToAssembly(ass, outputFile);
+    }
+    putBufferToFile(ass, outputFile);
 }
 
 
@@ -346,6 +401,8 @@ AssemblerError AssInit(Assembler* ass, const char* inputFile)
 {
     assert(ass);
     assert(inputFile);
+
+    DUMP_PRINT("AssInit started\n");
 
     // Initialize input Text from the file.  
     ParseError error = textInit(inputFile, &ass->inputText);
@@ -356,7 +413,7 @@ AssemblerError AssInit(Assembler* ass, const char* inputFile)
     }
 
     // Initialize output Buffer.
-    int* temp = (int*) calloc(ass->inputText.nLines, MAX_NUMBER_LINE_CMD * sizeof(int));
+    u_int8_t* temp = (u_int8_t*) calloc(ass->inputText.nLines, MAX_NUMBER_LINE_CMD * sizeof(int));
     if (temp == NULL)
     {
         DUMP_PRINT("ERROR! ERROR ALLOCATING MEMORY\n");
@@ -364,7 +421,13 @@ AssemblerError AssInit(Assembler* ass, const char* inputFile)
     }
     ass->outputBuffer = temp;
     ass->outputBufferPos = 0lu;
+
     ass->inputFileName = inputFile;
+
+    ass->emptyLabel = 0;
+
+    DUMP_PRINT("AssInit success\n");
+
 
     return ASSEMBLER_NO_ERROR;
 }
