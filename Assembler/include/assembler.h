@@ -15,6 +15,31 @@ struct Label
     int adress;
 };
 
+
+enum CommandError 
+{
+    // Generate enum.
+    #define DEF_ERR(name, errStr) CMD_ ## name,
+    #include "../include/errors.h"
+    #undef DEF_ERR
+};
+
+
+struct AssError
+{
+    CommandError err;
+    size_t line;
+};
+
+
+struct AssErrorArray
+{
+    AssError* err;
+    size_t emptyIndex;
+    size_t capacity;
+};
+
+
 struct Assembler
 {
     Text inputText;
@@ -25,6 +50,8 @@ struct Assembler
 
     Label labels[MAX_NUMBER_OF_LABELS];
     size_t emptyLabel;
+
+    AssErrorArray errorArray;
 };
 
 enum AssemblerError
@@ -36,7 +63,7 @@ enum AssemblerError
     ASSEMBLER_ALLOCATION_ERROR,
 };
 
-Assembler assembly(Assembler* ass, FILE* outputFile);
+void assembly(Assembler* ass, FILE* outputFile);
 
 AssemblerError AssInit(Assembler* ass, const char* inputFile);
 

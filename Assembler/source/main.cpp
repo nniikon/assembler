@@ -33,10 +33,6 @@ int main()
 {
     Assembler ass = {};
  
-    // CHECK_ASSEMBLER_ERROR(     AssInit(&ass, INPUT_FILE_NAME)             );
-    // CHECK_ASSEMBLER_ERROR(     textToAssembly(&ass, OUTPUT_FILE_NAME)     );
-    // CHECK_ASSEMBLER_ERROR(     AssDtor(&ass)                              );
-    
     // Open the output file.
     FILE* outputFile = fopen(OUTPUT_FILE_NAME, "wb");
     if (outputFile == NULL)

@@ -342,7 +342,9 @@ SPU_Error execProgram(SPU* spu)
 
             #undef DEF_CMD
 
-            default:                    return SPU_INCORRECT_INPUT;     break;
+            default: 
+                return SPU_INCORRECT_INPUT;     
+                break;
         }
     }
     return SPU_NO_ERROR;

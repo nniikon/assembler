@@ -14,30 +14,32 @@ struct Command
 struct Register
 {
     const char* name;
-    const int id;
+    const u_int8_t id;
 };
 
 
 
 constexpr Command COMMANDS[] = 
 {
-    #define DEF_CMD(name, byte_code, has_reg, has_num, func_name) {#name, byte_code},
+    #define DEF_CMD(name, byte_code, ...) {#name, byte_code},
     #include "CPU_commands.h"
     #undef DEF_CMD
 };
 
-enum eCOMMANDS
+enum eCOMMANDS // codestyle
 {
-    #define DEF_CMD(name, byte_code, has_reg, has_num, func_name) name ## has_reg ## has_num ## _ID,
+    #define DEF_CMD(name, byte_code, ...) name ## _ID,
     #include "CPU_commands.h"
     #undef DEF_CMD
 };
 
 
-const u_int8_t COM_REGISTER_BIT  = 0b010'00000;
 const u_int8_t COM_IMMEDIATE_BIT = 0b001'00000;
+const u_int8_t COM_REGISTER_BIT  = 0b010'00000;
+const u_int8_t COM_MEMORY_BIT    = 0b100'00000;
 const u_int8_t COM_COMMAND_BITS  = 0b000'11111;
 
+const size_t REGISTER_LENGTH = 3;
 const Register REGS[] =
 {
     {"rax", 1},
@@ -49,11 +51,6 @@ const Register REGS[] =
 
 const size_t AMOUNT_OF_COMMANDS = sizeof(COMMANDS) / sizeof(Command);
 
-
 const size_t AMOUNT_OF_REGISTERS = sizeof(REGS) / sizeof(Register);
-
-#undef NUM
-#undef STR
-#undef MAX_COMMAND_LENGTH_DEF
 
 #endif
