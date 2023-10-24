@@ -46,8 +46,8 @@ int main()
         return ASSEMBLER_OPEN_FILE_ERROR;
     }
 
-    AssInit(&ass, INPUT_FILE_NAME);
-    assembly(&ass, outputFile);
-    AssDtor(&ass);       
+    AssInit(&ass, INPUT_FILE_NAME);   
+    assembly(&ass, outputFile);   
+    AssDtor(&ass);
 
 }
