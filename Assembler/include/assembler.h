@@ -10,7 +10,7 @@
 
 struct Label
 {
-    char* name;
+    const char* name;
     size_t len;
     int adress;
 };

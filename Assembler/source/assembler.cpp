@@ -69,22 +69,33 @@ const int NUMBER_OF_COMPILATIONS = 2;
 */
 static void putBufferToFile(const Assembler* ass, FILE* outputFile);
 
-/**
- * @brief Prints a compiling error from the `command` struct. 
- */
-static void printAssError(Assembler* ass);
-
-
 static void setLabels(Assembler* ass);
+
+static CommandError checkCommandCorrectness(AssCommand* command, Assembler* ass, size_t pos);
+
+AssemblerError textToAssembly(Assembler* ass, FILE* outputFile);
+
+static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, AssCommand* cmd);
+
+static void setLabelName(const char* str, Assembler* ass);
+
+static bool putRegToBuffer(const char** str, Assembler* ass);
+
+static bool putLabelToBuffer(const char** str, Assembler* ass);
+
+static bool putNumberToBuffer(const char** str, Assembler* ass);
+
+static CommandError setArgs(const char** str, Assembler* ass, AssCommand* command);
+
+static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos);
 
 
 static AssemblerError pushAssErrArray(AssErrorArray* errArr, AssError* error);
 
+static AssemblerError AssErrorInit(AssErrorArray* errArr);
 
-static CommandError checkCommandCorrectness(AssCommand* command, Assembler* ass, size_t pos);
+static void printAssError(Assembler* ass);
 
-
-AssemblerError textToAssembly(Assembler* ass, FILE* outputFile);
 
 
 
@@ -95,7 +106,7 @@ static void putBufferToFile(const Assembler* ass, FILE* outputFile)
 
 
 
-static CommandError putCommandNameToBuffer(char** str, Assembler* ass, AssCommand* cmd)
+static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, AssCommand* cmd)
 {
     assert(str);
     assert(ass);
@@ -119,7 +130,7 @@ static CommandError putCommandNameToBuffer(char** str, Assembler* ass, AssComman
             if (delim == '\0') 
                 *str = NULL;
             else
-                *str += size + 1;
+                moveToNextWord(str, " +");
 
             return CMD_NO_ERROR;
         }
@@ -128,7 +139,7 @@ static CommandError putCommandNameToBuffer(char** str, Assembler* ass, AssComman
 }
 
 
-static void setLabelName(char* str, Assembler* ass)
+static void setLabelName(const char* str, Assembler* ass)
 {
     assert(str);
     assert(ass);
@@ -178,10 +189,10 @@ static void setLabels(Assembler* ass)
 }
 
 
-static bool putRegToBuffer(char** str, Assembler* ass)
+static bool putRegToBuffer(const char** str, Assembler* ass)
 {
     size_t size = 0;
-    char del = getWordSize(&size, *str, " ]");
+    char del = getWordSize(&size, *str, " ]+");
     
     if (size != REGISTER_LENGTH) 
         return false;
@@ -200,7 +211,8 @@ static bool putRegToBuffer(char** str, Assembler* ass)
             if (del == '\0' || del == ']')
                 *str = NULL;
             else
-                *str += size + 1;
+                moveToNextWord(str, " +");
+
             return true;
         }
     }
@@ -208,10 +220,10 @@ static bool putRegToBuffer(char** str, Assembler* ass)
 }
 
 
-static bool putLabelToBuffer(char** str, Assembler* ass)
+static bool putLabelToBuffer(const char** str, Assembler* ass)
 {
     size_t size = 0;
-    char del = getWordSize(&size, *str, " ]");
+    char del = getWordSize(&size, *str, " ]+");
 
     for (size_t i = 0; i < MAX_NUMBER_OF_LABELS; i++)
     {
@@ -230,7 +242,7 @@ static bool putLabelToBuffer(char** str, Assembler* ass)
             if (del == '\0' || del == ']')
                 *str = NULL;
             else
-                *str += size + 1;
+                moveToNextWord(str, " +");
             return true;
         }
     }
@@ -238,10 +250,10 @@ static bool putLabelToBuffer(char** str, Assembler* ass)
 }
 
 
-static bool putNumberToBuffer(char** str, Assembler* ass)
+static bool putNumberToBuffer(const char** str, Assembler* ass)
 {
     size_t size = 0;
-    char del = getWordSize(&size, *str, " ]");
+    char del = getWordSize(&size, *str, " ]+");
 
     for (size_t i = 0; i < size; i++)
     {
@@ -259,13 +271,13 @@ static bool putNumberToBuffer(char** str, Assembler* ass)
     if (del == '\0' || del == ']')
         *str = NULL;
     else
-        *str += size + 1;
+        moveToNextWord(str, " +");
 
     return true;
 }
 
 
-static CommandError setArgs(char** str, Assembler* ass, AssCommand* command)
+static CommandError setArgs(const char** str, Assembler* ass, AssCommand* command)
 {
     if (*str == NULL) return CMD_NO_ERROR;
 
@@ -296,7 +308,7 @@ static CommandError setArgs(char** str, Assembler* ass, AssCommand* command)
     else if ((*str)[0] == '[')
     {
         command->hasMem = true;
-        *str += 1;
+        (*str)++;
         return setArgs(str, ass, command);
     }
     else if (isdigit((*str)[0]))
@@ -310,6 +322,10 @@ static CommandError setArgs(char** str, Assembler* ass, AssCommand* command)
         {
             return CMD_INVALID_ARG;
         }
+    }
+    else
+    {
+        return CMD_INVALID_ARG;
     }
 
     DUMP_PRINT("setArgs successful\n");
@@ -349,7 +365,9 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
 
     for (size_t line = 0; line < ass->inputText.nLines; line++)
     {   
-        char* str = ass->inputText.line[line].str;
+        deleteMeaninglessSpaces(ass->inputText.line[line].str);
+
+        const char* str = ass->inputText.line[line].str;
         if (str[0] == '\0' || str[0] == '\n') continue; // TODO: fix
 
         IF_ASSEMBLER_DEBUG(fputc('\n', stderr));

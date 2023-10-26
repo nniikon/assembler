@@ -10,4 +10,6 @@ void deleteMeaninglessSpaces(char* input);
 
 char getWordSize(size_t* size, const char* str, const char* delim);
 
+void moveToNextWord(const char** input, const char* delim);
+
 #endif

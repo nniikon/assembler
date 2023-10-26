@@ -50,3 +50,45 @@ void deleteMeaninglessSpaces(char* input)
     input[newLength + 1] = '\0';
 }
 
+
+void moveToNextWord(const char** input, const char* delim)
+{
+    // Go until the first delimiter.
+    while ((*input)[0] != '\0')
+    {
+        bool isDel = false;
+        for (int j = 0; delim[j] != '\0'; j++)
+        {
+            if ((*input)[0] == delim[j])
+            {
+                isDel = true;
+                continue;
+            }
+        }
+        if (isDel == true)
+            break;
+        else
+            (*input)++;
+    }
+
+    // When you meet the first delimiter. 
+    while ((*input)[0] != '\0')
+    {
+        bool isDel = false;
+        for (int j = 0; delim[j] != '\0'; j++)
+        {
+            if ((*input)[0] == delim[j])
+            {
+                isDel = true;
+                continue;
+            }
+        }
+        if (isDel == false)
+            return;
+        else
+            (*input)++;
+    }
+
+    (*input) = NULL;
+    return;   
+}
