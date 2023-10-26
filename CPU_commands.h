@@ -6,7 +6,7 @@
 #define SGNTR_RAM 0b100'00000
 
 // DEF_CMD (NAME, BYTE-CODE, SPU FUNCTION NAME)
-DEF_CMD(PUSH, 0b000'00001 | SGNTR_IMM | SGNTR_RAM | SGNTR_REG,  )
+DEF_CMD(PUSH, 0b111'00001 | SGNTR_IMM | SGNTR_RAM | SGNTR_REG,  )
 DEF_CMD(DIV,  0b000'00010,                                      )
 DEF_CMD(SUB,  0b000'00011,                                      )
 DEF_CMD(OUT,  0b000'00100,                                      )
@@ -20,7 +20,9 @@ DEF_CMD(POP,  0b000'01011 | SGNTR_REG | SGNTR_RAM,              )
 DEF_CMD(JUMP, 0b000'01100 | SGNTR_IMM,                          )
 DEF_CMD(HLT,  0b000'11111,                                      )
 
-
+#undef SGNTR_IMM
+#undef SGNTR_REG
+#undef SGNTR_RAM
 // PUSH | SGNT_REG -> push register
 // PUSH | SGNT_IMM -> push immediate
 

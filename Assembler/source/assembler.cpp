@@ -11,6 +11,14 @@
         fprintf(stderr, __VA_ARGS__);\
     } while (0)
 
+    #define DUMP_PRINT_CYAN(...)\
+    do\
+    {\
+        fprintf(stderr, CYAN "file: %s line: %d\t\t", __FILE__, __LINE__);\
+        fprintf(stderr, __VA_ARGS__);\
+        fprintf(stderr, RESET);\
+    } while (0)
+
     #define DUMP_TEXT(txt)\
     do\
     {\
@@ -42,16 +50,19 @@ struct AssCommand
     bool hasLabel;
     bool hasMem;
 
+    size_t cmdID;
+
     size_t line;
 
     CommandError error;
 };
 
-
-
+// Could be any number.
+// Doesn't really matter.
 const size_t LABLE_POISON = -1;
 
 const int NUMBER_OF_COMPILATIONS = 2;
+
 
 /**
  * @brief Puts byte code into the given file.
@@ -61,13 +72,20 @@ static void putBufferToFile(const Assembler* ass, FILE* outputFile);
 /**
  * @brief Prints a compiling error from the `command` struct. 
  */
-static void printAssError(const AssCommand* command, Assembler* ass);
+static void printAssError(Assembler* ass);
 
 
 static void setLabels(Assembler* ass);
 
 
-static AssemblerError pushAssArray(AssErrorArray* errArr, AssError* error);
+static AssemblerError pushAssErrArray(AssErrorArray* errArr, AssError* error);
+
+
+static CommandError checkCommandCorrectness(AssCommand* command, Assembler* ass, size_t pos);
+
+
+AssemblerError textToAssembly(Assembler* ass, FILE* outputFile);
+
 
 
 static void putBufferToFile(const Assembler* ass, FILE* outputFile)
@@ -77,7 +95,7 @@ static void putBufferToFile(const Assembler* ass, FILE* outputFile)
 
 
 
-static CommandError putCommandNameToBuffer(char** str, Assembler* ass)
+static CommandError putCommandNameToBuffer(char** str, Assembler* ass, AssCommand* cmd)
 {
     assert(str);
     assert(ass);
@@ -90,12 +108,14 @@ static CommandError putCommandNameToBuffer(char** str, Assembler* ass)
     {
         if (strncasecmp(*str, COMMANDS[com].name, size) == 0)
         {
-            ass->outputBuffer[ass->outputBufferPos] = COMMANDS[com].code;
-            ass->outputBufferPos += sizeof(u_int8_t);
+            ass->outputBuffer[ass->outputBufferPos] = (COMMANDS[com].code & COM_COMMAND_BITS);
+            ass->outputBufferPos += sizeof(uint8_t); 
 
             DUMP_PRINT("Command name: <%s>\n", COMMANDS[com].name);
             DUMP_PRINT("Command code: <%d>\n", COMMANDS[com].code & COM_COMMAND_BITS);
             
+            cmd->cmdID = com;
+
             if (delim == '\0') 
                 *str = NULL;
             else
@@ -175,7 +195,7 @@ static bool putRegToBuffer(char** str, Assembler* ass)
             DUMP_PRINT("id = <%d>\n", (int) REGS[i].id);
 
             ass->outputBuffer[ass->outputBufferPos] = REGS[i].id;
-            ass->outputBufferPos += sizeof(u_int8_t);
+            ass->outputBufferPos += sizeof(uint8_t);
 
             if (del == '\0' || del == ']')
                 *str = NULL;
@@ -279,7 +299,7 @@ static CommandError setArgs(char** str, Assembler* ass, AssCommand* command)
         *str += 1;
         return setArgs(str, ass, command);
     }
-    else
+    else if (isdigit((*str)[0]))
     {
         if (putNumberToBuffer(str, ass)) 
         {
@@ -305,9 +325,16 @@ static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos)
     DUMP_PRINT("Started adjusting command code\n");
 
     if (command->hasLabel) ass->outputBuffer[pos] |= COM_IMMEDIATE_BIT;
-    if (command->hasMem  ) ass->outputBuffer[pos] |= COM_MEMORY_BIT;
     if (command->hasNum  ) ass->outputBuffer[pos] |= COM_IMMEDIATE_BIT;
+    if (command->hasMem  ) ass->outputBuffer[pos] |= COM_MEMORY_BIT;
     if (command->hasReg  ) ass->outputBuffer[pos] |= COM_REGISTER_BIT;
+
+    if (command->hasLabel) DUMP_PRINT("add imm(label) bit\n");
+    if (command->hasNum  ) DUMP_PRINT("add imm(number) bit\n");
+    if (command->hasMem  ) DUMP_PRINT("add ram bit\n");
+    if (command->hasReg  ) DUMP_PRINT("add reg bit\n");
+
+    DUMP_PRINT("Command code: %d\n", ass->outputBuffer[pos]);
 
     DUMP_PRINT("Adjustment success\n");
 }
@@ -336,11 +363,13 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
             .hasLabel = false,
             .hasMem = false,
 
+            .cmdID = 0,
+
             .line = line,
 
             .error = CMD_NO_ERROR,
         };
-        size_t nameBufferPos = ass->outputBufferPos;
+        size_t cmdNameBufferPos = ass->outputBufferPos;
 
         CommandError err = CMD_NO_ERROR;
 
@@ -354,11 +383,12 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
         else
         {
             // Threat the first word as a command name.
-            err = putCommandNameToBuffer(&str, ass);
+            err = putCommandNameToBuffer(&str, ass, &command);
             if (err != CMD_NO_ERROR)
             {
                 AssError tempError = {err, line};
-                pushAssArray(&(ass->errorArray), &tempError);
+                pushAssErrArray(&(ass->errorArray), &tempError);
+                continue;
             }
         }
         // Set the args.
@@ -366,10 +396,18 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
         if (err != CMD_NO_ERROR)
         {
             AssError tempError = {err, line};
-            pushAssArray(&(ass->errorArray), &tempError);
+            pushAssErrArray(&(ass->errorArray), &tempError);
+            continue;
         }
+        adjustCommandCode(&command, ass, cmdNameBufferPos);
 
-        adjustCommandCode(&command, ass, nameBufferPos);
+        err = checkCommandCorrectness(&command, ass, cmdNameBufferPos);
+        if (err != CMD_NO_ERROR)
+        {
+            AssError tempError = {err, line};
+            pushAssErrArray(&(ass->errorArray), &tempError);
+            continue;
+        }
     }
     
     return ASSEMBLER_NO_ERROR;
@@ -387,17 +425,14 @@ void assembly(Assembler* ass, FILE* outputFile)
         textToAssembly(ass, outputFile);
     }
     putBufferToFile(ass, outputFile);
-
-    for (int i = 0; i < ass->errorArray.capacity; i++)
-    {
-        fprintf(stderr, "error, line: %zu, code: <%s> \n", ass->errorArray.err[i].line, errorStr[(int) ass->errorArray.err[i].err]);
-    }
+    printAssError(ass);
     return;
 }
 
 
-static AssemblerError pushAssArray(AssErrorArray* errArr, AssError* error)
+static AssemblerError pushAssErrArray(AssErrorArray* errArr, AssError* error)
 {
+    DUMP_PRINT_CYAN("Pushing error\n");
     if ((errArr->emptyIndex + 1) == errArr->capacity)
     {
         AssError* temp = (AssError*) realloc(errArr->err, errArr->capacity * 2 * sizeof(AssError));
@@ -406,12 +441,14 @@ static AssemblerError pushAssArray(AssErrorArray* errArr, AssError* error)
             DUMP_PRINT("Error allocating memory\n");
             return ASSEMBLER_ALLOCATION_ERROR;
         }
+        errArr->err = temp; 
         errArr->capacity *= 2;
     }
 
     errArr->err[errArr->emptyIndex].err = error->err;
     errArr->err[errArr->emptyIndex].line = error->line;
     errArr->emptyIndex++;
+    DUMP_PRINT_CYAN("Pushing error success\n");
 
     return ASSEMBLER_NO_ERROR;
 }
@@ -452,7 +489,7 @@ AssemblerError AssInit(Assembler* ass, const char* inputFile)
     }
 
     // Initialize output Buffer.
-    u_int8_t* temp = (u_int8_t*) calloc(ass->inputText.nLines, MAX_NUMBER_LINE_CMD * sizeof(int));
+    uint8_t* temp = (uint8_t*) calloc(ass->inputText.nLines, MAX_NUMBER_LINE_CMD * sizeof(int));
     if (temp == NULL)
     {
         DUMP_PRINT("ERROR! ERROR ALLOCATING MEMORY\n");
@@ -490,4 +527,54 @@ AssemblerError AssDtor(Assembler* ass)
     free(ass->outputBuffer);
 
     return ASSEMBLER_NO_ERROR;
+}
+
+
+static void printAssError(Assembler* ass)
+{
+    const char* fileName = ass->inputFileName;
+    for (size_t errorID = 0; errorID < ass->errorArray.emptyIndex; errorID++)
+    {
+        AssError cmd = ass->errorArray.err[errorID];
+
+        fprintf(stderr, "%s(%zu): " MAGENTA "%s" RESET "\n", fileName, cmd.line + 1, errorStr[(int)cmd.err]);       
+        fprintf(stderr, "\t %zu| %s\n\n", cmd.line + 1, ass->inputText.line[cmd.line].str);
+    }
+    
+}
+
+
+static CommandError checkCommandCorrectness(AssCommand* cmd, Assembler* ass, size_t pos)
+{   
+    DUMP_PRINT("Checking command correctness\n");
+    size_t nBits = sizeof(uint8_t) * CHAR_BIT;
+    uint8_t cmdCode = ass->outputBuffer[pos];
+    
+    int    sumOfBits = 0;
+    int refSumOfBits = 0; 
+
+    for (int bitPos = (int) (nBits - 1); bitPos >= (int) NUMBER_OF_CMD_BITS; bitPos--)
+    {
+        uint8_t bit    = (cmdCode                   >> bitPos) & 1; // Get the command bit.
+        uint8_t refBit = (COMMANDS[cmd->cmdID].code >> bitPos) & 1; // Get the reference bit.
+
+        sumOfBits += bit;
+        refSumOfBits += refBit;
+
+        // If the bit is unexpected...
+        if (refBit == 0 && bit == 1) 
+        {
+            // TODO: better error recognision.
+            DUMP_PRINT("Incorrect bit in encountered\n");
+            return CMD_INVALID_ARG; // ... return error.
+        }
+    }
+    if (sumOfBits == 0 && refSumOfBits != 0)
+    {
+        DUMP_PRINT("Too few bits encountered\n");
+        return CMD_TOO_FEW_ARGS;
+    }
+    
+    DUMP_PRINT("Command is correct\n");
+    return CMD_NO_ERROR;
 }

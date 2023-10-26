@@ -45,7 +45,7 @@ struct Assembler
     Text inputText;
     const char* inputFileName;
     
-    u_int8_t* outputBuffer;
+    uint8_t* outputBuffer;
     size_t outputBufferPos;
 
     Label labels[MAX_NUMBER_OF_LABELS];

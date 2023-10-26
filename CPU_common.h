@@ -8,13 +8,13 @@ const int FLOATING_POINTER_COEFFICIENT = 100;
 struct Command
 {
     const char* const name;
-    const u_int8_t code;
+    const uint8_t code;
 };
 
 struct Register
 {
     const char* name;
-    const u_int8_t id;
+    const uint8_t id;
 };
 
 
@@ -33,11 +33,13 @@ enum eCOMMANDS // codestyle
     #undef DEF_CMD
 };
 
+const size_t NUMBER_OF_CMD_BITS = 5;
 
-const u_int8_t COM_IMMEDIATE_BIT = 0b001'00000;
-const u_int8_t COM_REGISTER_BIT  = 0b010'00000;
-const u_int8_t COM_MEMORY_BIT    = 0b100'00000;
-const u_int8_t COM_COMMAND_BITS  = 0b000'11111;
+
+const uint8_t COM_IMMEDIATE_BIT = 0b001'00000;
+const uint8_t COM_REGISTER_BIT  = 0b010'00000;
+const uint8_t COM_MEMORY_BIT    = 0b100'00000;
+const uint8_t COM_COMMAND_BITS  = 0b000'11111;
 
 const size_t REGISTER_LENGTH = 3;
 const Register REGS[] =
