@@ -34,15 +34,6 @@
 #endif
 
 
-static const char* errorStr[] = 
-{
-    // Generate error string names.
-    #define DEF_ERR(name, errStr) errStr,
-    #include "../include/errors.h"
-    #undef DEF_ERR
-};
-
-
 struct AssCommand
 {
     bool hasReg;
@@ -59,11 +50,11 @@ struct AssCommand
 
 // Could be any number.
 // Doesn't really matter.
-const size_t LABLE_POISON = -1;
+const size_t LABEL_POISON = -1;
 
 const int NUMBER_OF_COMPILATIONS = 2;
 
-const char* DELIMS = " +];";
+const char* DELIMS = "\t +];";
 
 /**
  * @brief Puts byte code into the given file.
@@ -89,14 +80,6 @@ static bool putNumberToBuffer(const char** str, const size_t size, Assembler* as
 static CommandError setArgs(const char** str, Assembler* ass, AssCommand* command);
 
 static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos);
-
-
-static AssemblerError pushAssErrArray(AssErrorArray* errArr, AssError* error);
-
-static AssemblerError AssErrorInit(AssErrorArray* errArr);
-
-static void printAssError(Assembler* ass);
-
 
 
 
@@ -181,7 +164,7 @@ static void setLabels(Assembler* ass)
     {   
         char* str = ass->inputText.line[line].str;
 
-        ass->outputBufferPos = LABLE_POISON;
+        ass->outputBufferPos = LABEL_POISON;
 
         if (strchr(str, ':') != NULL)
         {
@@ -242,12 +225,16 @@ static bool putLabelToBuffer(const char** str, const size_t size, Assembler* ass
     return false;
 }
 
+static inline bool isNumber(char chr) {
+    return (chr >= '0' && chr <= '9') || chr == '+' || chr == '-';
+}
 
 static bool putNumberToBuffer(const char** str, const size_t size, Assembler* ass)
 {
+    DUMP_PRINT("Putting number to buffer.\n");
     for (size_t i = 0; i < size; i++)
     {
-        if (isdigit((*str)[i]) == 0)
+        if (isNumber((*str)[i]) == 0)
             return false;
     }
     int num = atoi(*str) * FLOATING_POINT_COEFFICIENT;
@@ -301,7 +288,7 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
         (*str)++;
         return setArgs(str, ass, command);
     }
-    else if (isdigit((*str)[0]))
+    else if (isNumber((*str)[0]))
     {
         if (putNumberToBuffer(str, size, ass)) 
         {
@@ -360,6 +347,7 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
         deleteMeaninglessSpaces(ass->inputText.line[line].str);
 
         const char* str = ass->inputText.line[line].str;
+
         if (str[0] == '\0' || str[0] == '\n') continue; // TODO: fix
 
         IF_ASSEMBLER_DEBUG(fputc('\n', stderr));
@@ -379,6 +367,8 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
 
             .error = CMD_NO_ERROR,
         };
+
+        // Save the command name position.
         size_t cmdNameBufferPos = ass->outputBufferPos;
 
         CommandError err = CMD_NO_ERROR;
@@ -396,7 +386,7 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
             err = putCommandNameToBuffer(&str, ass, &command);
             if (err != CMD_NO_ERROR)
             {
-                AssError tempError = {err, line};
+                AssError tempError = {err, line, ass->inputFileName};
                 pushAssErrArray(&(ass->errorArray), &tempError);
                 continue;
             }
@@ -405,7 +395,7 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
         err = setArgs(&str, ass, &command);
         if (err != CMD_NO_ERROR)
         {
-            AssError tempError = {err, line};
+            AssError tempError = {err, line, ass->inputFileName};
             pushAssErrArray(&(ass->errorArray), &tempError);
             continue;
         }
@@ -414,7 +404,7 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile)
         err = checkCommandCorrectness(&command, ass, cmdNameBufferPos);
         if (err != CMD_NO_ERROR)
         {
-            AssError tempError = {err, line};
+            AssError tempError = {err, line, ass->inputFileName};
             pushAssErrArray(&(ass->errorArray), &tempError);
             continue;
         }
@@ -435,51 +425,8 @@ void assembly(Assembler* ass, FILE* outputFile)
         textToAssembly(ass, outputFile);
     }
     putBufferToFile(ass, outputFile);
-    printAssError(ass);
+    printAssError(&ass->errorArray, ass->inputText.line); 
     return;
-}
-
-
-static AssemblerError pushAssErrArray(AssErrorArray* errArr, AssError* error)
-{
-    DUMP_PRINT_CYAN("Pushing error\n");
-    if ((errArr->emptyIndex + 1) == errArr->capacity)
-    {
-        AssError* temp = (AssError*) realloc(errArr->err, errArr->capacity * 2 * sizeof(AssError));
-        if (temp == NULL)
-        {
-            DUMP_PRINT("Error allocating memory\n");
-            return ASSEMBLER_ALLOCATION_ERROR;
-        }
-        errArr->err = temp; 
-        errArr->capacity *= 2;
-    }
-
-    errArr->err[errArr->emptyIndex].err = error->err;
-    errArr->err[errArr->emptyIndex].line = error->line;
-    errArr->emptyIndex++;
-    DUMP_PRINT_CYAN("Pushing error success\n");
-
-    return ASSEMBLER_NO_ERROR;
-}
-
-
-static AssemblerError AssErrorInit(AssErrorArray* errArr)
-{
-    assert(errArr);
-
-    AssError* temp = (AssError*) calloc(DEFAULT_SIZE_OF_ERROR_ARR, sizeof(AssError));
-    if (temp == NULL)
-    {
-        DUMP_PRINT("Error allocating memory\n");
-        return ASSEMBLER_ALLOCATION_ERROR;
-    }
-
-    errArr->err = temp;
-    errArr->capacity = DEFAULT_SIZE_OF_ERROR_ARR;
-    errArr->emptyIndex = 0;
-
-    return ASSEMBLER_NO_ERROR;
 }
 
 
@@ -533,24 +480,10 @@ AssemblerError AssDtor(Assembler* ass)
     assert(ass->outputBuffer);
 
     textDtor(&ass->inputText);
-    free(ass->errorArray.err);
     free(ass->outputBuffer);
+    AssErrorDtor(&ass->errorArray);
 
     return ASSEMBLER_NO_ERROR;
-}
-
-
-static void printAssError(Assembler* ass)
-{
-    const char* fileName = ass->inputFileName;
-    for (size_t errorID = 0; errorID < ass->errorArray.emptyIndex; errorID++)
-    {
-        AssError cmd = ass->errorArray.err[errorID];
-
-        fprintf(stderr, "%s(%zu): " MAGENTA "%s" RESET "\n", fileName, cmd.line + 1, errorStr[(int)cmd.err]);       
-        fprintf(stderr, "\t %zu| %s\n\n", cmd.line + 1, ass->inputText.line[cmd.line].str);
-    }
-    
 }
 
 

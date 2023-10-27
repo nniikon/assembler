@@ -40,8 +40,7 @@ const uint8_t COM_IMMEDIATE_BIT = 0b001'00000;
 const uint8_t COM_REGISTER_BIT  = 0b010'00000;
 const uint8_t COM_MEMORY_BIT    = 0b100'00000;
 const uint8_t COM_COMMAND_BITS  = 0b000'11111;
-
-const size_t RAM_SIZE = 64; 
+ 
 
 const size_t REGISTER_LENGTH = 3;
 const Register REGS[] =

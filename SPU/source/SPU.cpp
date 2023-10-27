@@ -125,21 +125,21 @@ static int* getArgsAdress(SPU* spu)
     int* res = NULL;
     int resSum = 0;
 
-    if (cmd & COM_IMMEDIATE_BIT)
-    {
-        res = (int*)spu->curCommand;
-        resSum += *(int*)spu->curCommand;
-        spu->curCommand += sizeof(int);    
-    }
     if (cmd & COM_REGISTER_BIT)
     {
         res = &(spu->reg[*(uint8_t*)spu->curCommand]);
         resSum += spu->reg[*(uint8_t*)spu->curCommand];
         spu->curCommand += sizeof(uint8_t);
     }
+    if (cmd & COM_IMMEDIATE_BIT)
+    {
+        res = (int*)spu->curCommand;
+        resSum += *(int*)spu->curCommand;
+        spu->curCommand += sizeof(int);    
+    }
     if (cmd & COM_MEMORY_BIT)       
     {
-        res = &(spu->ram[resSum]);
+        res = &(spu->ram[resSum / FLOATING_POINT_COEFFICIENT]);
     }
 
     return res;
@@ -167,7 +167,7 @@ SPU_Error execProgram(SPU* spu)
                 return SPU_INCORRECT_INPUT;     
                 break;
         }
-        //renderRam_console(spu->ram, SPU_RAM_CAPACITY);
+        // renderRam_console(spu->ram, SPU_RAM_CAPACITY);
     }
     return SPU_NO_ERROR;
 }
