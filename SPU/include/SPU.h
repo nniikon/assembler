@@ -8,12 +8,13 @@
 #include "../../CPU_common.h"
 #include "stack.h"
 #include "colors.h"
+#include "SPU_graph.h"
 
 struct SPU
 {
     Stack stack;
     int reg[AMOUNT_OF_REGISTERS];
-    int ram[RAM_SIZE];
+    int* ram;
     uint8_t* curCommand;
     uint8_t* commands;
 };
@@ -27,6 +28,7 @@ enum SPU_Error
     SPU_STACK_ERROR,
     SPU_NULL_SPU,
     SPU_NULL_ARRAY,
+    SPU_MEM_ALLOC_ERROR,
 };
 
 enum ParseError

@@ -63,6 +63,7 @@ const size_t LABLE_POISON = -1;
 
 const int NUMBER_OF_COMPILATIONS = 2;
 
+const char* DELIMS = " +];";
 
 /**
  * @brief Puts byte code into the given file.
@@ -79,11 +80,11 @@ static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, Ass
 
 static void setLabelName(const char* str, Assembler* ass);
 
-static bool putRegToBuffer(const char** str, Assembler* ass);
+static bool putRegToBuffer(const char** str, const size_t size, Assembler* ass);
 
-static bool putLabelToBuffer(const char** str, Assembler* ass);
+static bool putLabelToBuffer(const char** str, const size_t size, Assembler* ass);
 
-static bool putNumberToBuffer(const char** str, Assembler* ass);
+static bool putNumberToBuffer(const char** str, const size_t size, Assembler* ass);
 
 static CommandError setArgs(const char** str, Assembler* ass, AssCommand* command);
 
@@ -105,6 +106,14 @@ static void putBufferToFile(const Assembler* ass, FILE* outputFile)
 }
 
 
+static void moveToNextArgument(const char** str, const char del)
+{
+    if (del == '\0' || del == ']'|| del == ';')
+        *str = NULL;
+    else
+        moveToNextWord(str, DELIMS);
+}
+
 
 static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, AssCommand* cmd)
 {
@@ -113,7 +122,7 @@ static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, Ass
 
     DUMP_PRINT("Setting command name:\n");
     size_t size = 0;
-    char delim = getWordSize(&size, *str, " ");
+    char del = getWordSize(&size, *str, " ");
 
     DUMP_PRINT("Command name length: <%zu>, name: <%.*s>\n", size, (int)size, *str);
 
@@ -129,10 +138,7 @@ static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, Ass
             
             cmd->cmdID = com;
 
-            if (delim == '\0') 
-                *str = NULL;
-            else
-                moveToNextWord(str, " +");
+            moveToNextArgument(str, del);
 
             return CMD_NO_ERROR;
         }
@@ -191,11 +197,8 @@ static void setLabels(Assembler* ass)
 }
 
 
-static bool putRegToBuffer(const char** str, Assembler* ass)
-{
-    size_t size = 0;
-    char del = getWordSize(&size, *str, " ]+");
-    
+static bool putRegToBuffer(const char** str, const size_t size, Assembler* ass)
+{   
     if (size != REGISTER_LENGTH) 
         return false;
 
@@ -210,11 +213,6 @@ static bool putRegToBuffer(const char** str, Assembler* ass)
             ass->outputBuffer[ass->outputBufferPos] = REGS[i].id;
             ass->outputBufferPos += sizeof(uint8_t);
 
-            if (del == '\0' || del == ']')
-                *str = NULL;
-            else
-                moveToNextWord(str, " +]");
-
             return true;
         }
     }
@@ -222,11 +220,8 @@ static bool putRegToBuffer(const char** str, Assembler* ass)
 }
 
 
-static bool putLabelToBuffer(const char** str, Assembler* ass)
+static bool putLabelToBuffer(const char** str, const size_t size, Assembler* ass)
 {
-    size_t size = 0;
-    char del = getWordSize(&size, *str, " ]+");
-
     for (size_t i = 0; i < MAX_NUMBER_OF_LABELS; i++)
     {
         if (size != ass->labels[i].len)
@@ -241,10 +236,6 @@ static bool putLabelToBuffer(const char** str, Assembler* ass)
             memcpy(ass->outputBuffer + ass->outputBufferPos, &(ass->labels[i].adress), sizeof(int));
             ass->outputBufferPos += sizeof(int);
 
-            if (del == '\0' || del == ']')
-                *str = NULL;
-            else
-                moveToNextWord(str, " +]");
             return true;
         }
     }
@@ -252,11 +243,8 @@ static bool putLabelToBuffer(const char** str, Assembler* ass)
 }
 
 
-static bool putNumberToBuffer(const char** str, Assembler* ass)
+static bool putNumberToBuffer(const char** str, const size_t size, Assembler* ass)
 {
-    size_t size = 0;
-    char del = getWordSize(&size, *str, " ]+");
-
     for (size_t i = 0; i < size; i++)
     {
         if (isdigit((*str)[i]) == 0)
@@ -269,11 +257,6 @@ static bool putNumberToBuffer(const char** str, Assembler* ass)
 
     memcpy(ass->outputBuffer + ass->outputBufferPos, &num, sizeof(int));
     ass->outputBufferPos += sizeof(int);
-
-    if (del == '\0' || del == ']')
-        *str = NULL;
-    else
-        moveToNextWord(str, " +]");
 
     return true;
 }
@@ -289,17 +272,22 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
 
     DUMP_PRINT("setArgs started with <%s>\n", *str);
 
+    size_t size = 0;
+    char del = getWordSize(&size, *str, DELIMS);
+    
     // If the first character is a letter, treat it as a word. 
     if (isalpha((*str)[0]))
     {
-        if (putRegToBuffer(str, ass))
+        if (putRegToBuffer(str, size, ass))
         {
             command->hasReg = true;
+            moveToNextArgument(str, del);
             return setArgs(str, ass, command);
         }    
-        else if (putLabelToBuffer(str, ass))
+        else if (putLabelToBuffer(str, size, ass))
         {
             command->hasLabel = true;
+            moveToNextArgument(str, del);
             return setArgs(str, ass, command);
         }    
         else 
@@ -315,9 +303,10 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
     }
     else if (isdigit((*str)[0]))
     {
-        if (putNumberToBuffer(str, ass)) 
+        if (putNumberToBuffer(str, size, ass)) 
         {
             command->hasNum = true;
+            moveToNextArgument(str, del);
             return setArgs(str, ass, command);
         }
         else
@@ -329,6 +318,7 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
     {
         return CMD_INVALID_ARG;
     }
+    
 
     DUMP_PRINT("setArgs successful\n");
     return CMD_NO_ERROR;

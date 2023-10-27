@@ -49,30 +49,25 @@ const int REG_POISON = INT32_MIN;
 #endif
 
 
-static int getRegisterArrayNum(int reg)
-{
-    // Dumb function
-    // TODO: fix / add enum / structure
-    return reg - 1;
-}
-
 ParseError fileToIntBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME)
 {
     uint8_t* tempBuf = (uint8_t*)calloc(size, 1);
     if (tempBuf == NULL)
     {
-        //perror("Memory allocation error");
         return PARSE_MEM_ALLOCATION_ERROR;
     }
 
     FILE* file = fopen(FILE_NAME, "rb");
     if (file == NULL)
     {
-        //perror("File opening error");
         return PARSE_FILE_OPEN_ERROR;
     }
 
-    fread(tempBuf, size, 1, file); // TODO: error check
+    size_t sizeRef = fread(tempBuf, 1, size, file);
+    if (sizeRef != size)
+    {
+        return PARSE_FREAD_ERROR;
+    }
 
     fclose(file);
 
@@ -81,13 +76,13 @@ ParseError fileToIntBuffer(uint8_t** buffer, const size_t size, const char* FILE
     return PARSE_NO_ERROR;
 }
 
+
 ParseError getFileSize(const char* fileName, size_t* size)
 {
     struct stat bf = {};
     int error = stat(fileName, &bf);
     if (error == -1)
     {
-        //perror("Stat error");
         return PARSE_STAT_ERROR;
     }
 
@@ -115,7 +110,7 @@ static int getArgsValue(SPU* spu)
     }
     if (cmd & COM_MEMORY_BIT)       
     {
-        res = spu->ram[res];
+        res = spu->ram[res / FLOATING_POINT_COEFFICIENT];
     }
 
     return res;
@@ -172,9 +167,11 @@ SPU_Error execProgram(SPU* spu)
                 return SPU_INCORRECT_INPUT;     
                 break;
         }
+        //renderRam_console(spu->ram, SPU_RAM_CAPACITY);
     }
     return SPU_NO_ERROR;
 }
+
 
 SPU_Error spuInit(SPU* spu, uint8_t* commandsArr)
 {
@@ -188,14 +185,15 @@ SPU_Error spuInit(SPU* spu, uint8_t* commandsArr)
     spu->curCommand = commandsArr;
     spu->commands   = commandsArr;
     
+    // Poison the registers.
     for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
         spu->reg[i] = REG_POISON;
     
     // Stack init.
-    setStackLogFile("stackLog.htm"); // rename setStackLogFile
+    setStackLogFile("stackLog.htm"); // TODO: FIX CRINGE
 
+    // Stack init.
     StackError stackError = stackInit(&spu->stack);
-
     // Stack error handling.
     if (stackError != STACK_NO_ERROR)
     {
@@ -205,9 +203,23 @@ SPU_Error spuInit(SPU* spu, uint8_t* commandsArr)
         return SPU_STACK_ERROR;
     }
 
+    // Allocate memory for RAM.
+    int* tempRam = (int*) calloc(SPU_RAM_CAPACITY, sizeof(int));
+    if (tempRam == NULL)
+    {
+        DUMP_PRINT("Error allocating memory for RAM.\n");
+        
+        stackDtor(&spu->stack);
+        return SPU_MEM_ALLOC_ERROR;
+    }
+    spu->ram = tempRam;
+
+
+
     DUMP_PRINT("SPU initialization ended successfully:\n");
     return SPU_NO_ERROR;
 }
+
 
 SPU_Error spuDtor(SPU* spu)
 {
@@ -229,6 +241,9 @@ SPU_Error spuDtor(SPU* spu)
 
         return SPU_STACK_ERROR;
     }
+
+    // Free the ram.
+    free(spu->ram);
 
     DUMP_PRINT("SPU destruction ended successfully:\n");
     return SPU_NO_ERROR;

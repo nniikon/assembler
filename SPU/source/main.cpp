@@ -32,9 +32,10 @@ int main()
     uint8_t* buffer = NULL;
     size_t bufferSize = 0;
     SPU spu = {};
+    SPU_Error err = SPU_NO_ERROR;
+    ParseError parseError = PARSE_NO_ERROR;
 
-
-    ParseError parseError = getFileSize(SPU_INPUT_FILE_NAME, &bufferSize);
+    parseError = getFileSize(SPU_INPUT_FILE_NAME, &bufferSize);
     CHECK_PARSE_ERROR(parseError);
 
     parseError = fileToIntBuffer(&buffer, bufferSize, SPU_INPUT_FILE_NAME);
@@ -43,13 +44,14 @@ int main()
 
     spuInit(&spu, buffer);
 
-    if (execProgram(&spu) == SPU_NO_ERROR)
+    err = execProgram(&spu); 
+    if (err != SPU_NO_ERROR)
     {
-        fprintf(stderr, "NO ERROR OCCURRED\n");
+        free(buffer);
+        spuDtor(&spu);
+        fprintf(stderr, "ERROR OCCURRED\n");
+        return err;
     }
-    stackDump(&spu.stack, STACK_NO_ERROR);
     spuDtor(&spu);
-
-
     free(buffer);
 }

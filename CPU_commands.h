@@ -3,7 +3,8 @@
 #define SGNTR_RAM 0b100'00000
 
 #define move_buffer_pos(shift) spu->curCommand += (shift);
-#define set_buffer_pos(shift) spu->curCommand = spu->commands + shift;  
+#define set_buffer_pos(shift) spu->curCommand = spu->commands + shift; 
+#define cur_buf_shift (int)((size_t)spu->curCommand - (size_t)spu->commands) 
 #define arg_value getArgsValue(spu);
 #define arg_adress getArgsAdress(spu);
 #define push(arg) stackPush(&spu->stack, arg);
@@ -33,7 +34,7 @@ DEF_CMD(DIV, 0b000'00010,
                     (float)value2 / float_coef, (float)value1 / float_coef, 
                     (float)(value2 * float_coef / value1) / float_coef);
 
-        push(value2 * float_coef / value1);
+        push((int)((float)value2 * float_coef / (float)value1));
         move_buffer_pos(sizeof(uint8_t));
     }
 )
@@ -84,7 +85,7 @@ DEF_CMD(MUL, 0b000'00110,
                     (float)value2 / float_coef, (float)value1 / float_coef, 
                     (float)(value2 * value1 / float_coef) / float_coef);
 
-        push(value2 * value1 / float_coef);
+        push((int) ((float)value2 * (float)value1 / float_coef));
         move_buffer_pos(sizeof(uint8_t));
     }
 )
@@ -193,6 +194,24 @@ CONDITIONAL_JUMP(jbe, 0b000'10000, value2 <= value1)
 CONDITIONAL_JUMP(je,  0b000'10001, value2 == value1)
 CONDITIONAL_JUMP(jne, 0b000'10010, value2 != value1)
 
+DEF_CMD(CALL, 0b000'10011 | SGNTR_IMM,
+    {
+        int value = arg_value;
+        int curPos = cur_buf_shift;
+        push(curPos);
+        set_buffer_pos(value);
+    }
+)
+
+DEF_CMD(ret, 0b000'10100,
+    {
+        int value = 0;
+        pop(value);
+        set_buffer_pos(value);
+    }
+)
+
+
 
 DEF_CMD(HLT, 0b000'11111,
     {
@@ -208,10 +227,6 @@ DEF_CMD(HLT, 0b000'11111,
 #undef push
 #undef pop
 #undef float_coef
-
-
-// PUSH | SGNT_REG -> push register
-// PUSH | SGNT_IMM -> push immediate
 
 // BYTE-CODE STRUCTURE
 //ram reg imm    command id
