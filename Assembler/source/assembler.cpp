@@ -115,6 +115,8 @@ static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, Ass
     size_t size = 0;
     char delim = getWordSize(&size, *str, " ");
 
+    DUMP_PRINT("Command name length: <%zu>, name: <%.*s>\n", size, (int)size, *str);
+
     for (size_t com = 0; com < AMOUNT_OF_COMMANDS; com++)
     {
         if (strncasecmp(*str, COMMANDS[com].name, size) == 0)
@@ -211,7 +213,7 @@ static bool putRegToBuffer(const char** str, Assembler* ass)
             if (del == '\0' || del == ']')
                 *str = NULL;
             else
-                moveToNextWord(str, " +");
+                moveToNextWord(str, " +]");
 
             return true;
         }
@@ -242,7 +244,7 @@ static bool putLabelToBuffer(const char** str, Assembler* ass)
             if (del == '\0' || del == ']')
                 *str = NULL;
             else
-                moveToNextWord(str, " +");
+                moveToNextWord(str, " +]");
             return true;
         }
     }
@@ -260,7 +262,7 @@ static bool putNumberToBuffer(const char** str, Assembler* ass)
         if (isdigit((*str)[i]) == 0)
             return false;
     }
-    int num = atoi(*str);
+    int num = atoi(*str) * FLOATING_POINT_COEFFICIENT;
 
     DUMP_PRINT("\"%.*s\"\n", (int)size, *str);
     DUMP_PRINT("number: <%d>\n", num);
@@ -271,7 +273,7 @@ static bool putNumberToBuffer(const char** str, Assembler* ass)
     if (del == '\0' || del == ']')
         *str = NULL;
     else
-        moveToNextWord(str, " +");
+        moveToNextWord(str, " +]");
 
     return true;
 }

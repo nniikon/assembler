@@ -25,13 +25,11 @@ do                                 \
     }                              \
 } while (0)                        \
 
-/*
-TODO:
-rename config.h
-*/
+
+
 int main()
 {      
-    int* buffer = NULL;
+    uint8_t* buffer = NULL;
     size_t bufferSize = 0;
     SPU spu = {};
 

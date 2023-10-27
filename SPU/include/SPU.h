@@ -7,13 +7,15 @@
 #include <malloc.h>
 #include "../../CPU_common.h"
 #include "stack.h"
+#include "colors.h"
 
 struct SPU
 {
     Stack stack;
     int reg[AMOUNT_OF_REGISTERS];
-    int* curCommand;
-    int* commands;
+    int ram[RAM_SIZE];
+    uint8_t* curCommand;
+    uint8_t* commands;
 };
 
 
@@ -40,11 +42,11 @@ enum ParseError
 
 ParseError getFileSize(const char* fileName, size_t* size);
 
-ParseError fileToIntBuffer(int** buffer, const size_t size, const char* FILE_NAME);
+ParseError fileToIntBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME);
 
 SPU_Error execProgram(SPU* spu);
 
-SPU_Error spuInit(SPU* spu, int* commandsArr);
+SPU_Error spuInit(SPU* spu, uint8_t* commandsArr);
 
 SPU_Error spuDtor(SPU* spu);
 
