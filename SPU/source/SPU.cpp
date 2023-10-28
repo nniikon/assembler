@@ -133,25 +133,15 @@ SPU_Error spuInit(SPU* spu, const char* inputFileName)
     assert(spu);
     assert(inputFileName);
 
-    uint8_t* buffer = NULL;
-    size_t bufferSize = 0;
-    SPU_fileError fileErr = getFileSize(inputFileName, &bufferSize);
+    SPU_fileError fileErr = createBuffer(&(spu->commands), inputFileName);
     if (fileErr != SPU_FILE_NO_ERROR)
     {
-        fprintf(stderr, "Spu init: parsing error\n");
-        return SPU_PARSE_ERROR;
-    }
-
-    fileErr = fileToIntBuffer(&buffer, bufferSize, inputFileName);
-    if (fileErr != SPU_FILE_NO_ERROR)
-    {
-        fprintf(stderr, "Spu init: parsing error\n");
-        return SPU_PARSE_ERROR;
+        fprintf(stderr, "spuInit: file handling error\n");
+        return SPU_FILE_ERROR;
     }
 
     // SPU init.
-    spu->curCommand = buffer;
-    spu->commands   = buffer;
+    spu->curCommand = spu->commands;
 
     // Poison the registers.
     for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)

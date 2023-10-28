@@ -19,10 +19,11 @@ enum SPU_fileError
 };
 
 
-SPU_fileError fileToIntBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME);
+SPU_fileError fileToBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME);
 
 SPU_fileError getFileSize(const char* fileName, size_t* size);
 
+SPU_fileError createBuffer(uint8_t** buffer, const char* FILE_NAME);
 
 
 #endif

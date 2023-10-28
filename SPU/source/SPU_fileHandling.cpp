@@ -1,7 +1,7 @@
 #include "../include/SPU_fileHandling.h"
 
 
-SPU_fileError fileToIntBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME)
+SPU_fileError fileToBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME)
 {
     uint8_t* tempBuf = (uint8_t*)calloc(size, 1);
     if (tempBuf == NULL)
@@ -42,5 +42,20 @@ SPU_fileError getFileSize(const char* fileName, size_t* size)
     }
 
     *size = bf.st_size;
+    return SPU_FILE_NO_ERROR;
+}
+
+
+SPU_fileError createBuffer(uint8_t** buffer, const char* inputFileName)
+{
+    size_t bufferSize = 0;
+    SPU_fileError fileErr = getFileSize(inputFileName, &bufferSize);
+    if (fileErr != SPU_FILE_NO_ERROR)
+        return fileErr;
+
+    fileErr = fileToBuffer(buffer, bufferSize, inputFileName);
+    if (fileErr != SPU_FILE_NO_ERROR)
+        return fileErr;
+        
     return SPU_FILE_NO_ERROR;
 }

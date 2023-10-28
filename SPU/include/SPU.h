@@ -16,6 +16,7 @@ struct SPU
     int* ram;
     uint8_t* curCommand;
     uint8_t* commands;
+    char* vramBuffer;
 };
 
 enum SPU_Error
@@ -27,7 +28,7 @@ enum SPU_Error
     SPU_NULL_SPU,
     SPU_NULL_ARRAY,
     SPU_MEM_ALLOC_ERROR,
-    SPU_PARSE_ERROR,
+    SPU_FILE_ERROR,
 };
 
 SPU_Error execProgram(SPU* spu);
