@@ -61,8 +61,8 @@ DEF_CMD(SUB, 0b000'00011,
     }
 )
 
-DEF_CMD(ADD, 0b000'00111,     
-    {                                 
+DEF_CMD(ADD, 0b000'00111,
+    {
         int value1 = 0;
         pop(value1);
 
@@ -78,8 +78,8 @@ DEF_CMD(ADD, 0b000'00111,
     }
 )
 
-DEF_CMD(MUL, 0b000'00110,    
-    {                                  
+DEF_CMD(MUL, 0b000'00110,
+    {
         int value1 = 0;
         pop(value1);
 
@@ -101,7 +101,7 @@ DEF_CMD(OUT, 0b000'00100,
         pop(value);
 
         fprintf(stdout, RED "%g" RESET "\n", (float)value / float_coef);
-        
+
         move_buffer_pos(sizeof(uint8_t));
     }
 )
