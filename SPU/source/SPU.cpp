@@ -91,32 +91,6 @@ ParseError getFileSize(const char* fileName, size_t* size)
 }
 
 
-static int getArgsValue(SPU* spu)
-{
-    uint8_t cmd = ((uint8_t*)spu->curCommand)[0];
-    spu->curCommand += sizeof(uint8_t);
-
-    int res = 0;
-
-    if (cmd & CMD_REGISTER_BIT)
-    {
-        res += spu->reg[*(uint8_t*)spu->curCommand];
-        spu->curCommand += sizeof(uint8_t);
-    }
-    if (cmd & CMD_IMMEDIATE_BIT)
-    {
-        res += *(int*)spu->curCommand;
-        spu->curCommand += sizeof(int);
-    }
-    if (cmd & CMD_MEMORY_BIT)
-    {
-        res = spu->ram[res / FLOATING_POINT_COEFFICIENT];
-    }
-
-    return res;
-}
-
-
 static int* getArgsAdress(SPU* spu)
 {
     uint8_t cmd = *(uint8_t*)spu->curCommand;
@@ -143,6 +117,26 @@ static int* getArgsAdress(SPU* spu)
     }
 
     return res;
+}
+
+
+static int getArgsValue(SPU* spu)
+{
+    uint8_t cmd = ((uint8_t*)spu->curCommand)[0];
+
+    int res = 0;
+    // Since 'rax + 5' doesn't have its own variable, it needs to be handled individually.
+    if ((cmd & CMD_REGISTER_BIT) && (cmd & CMD_IMMEDIATE_BIT))
+    {
+        spu->curCommand += sizeof(uint8_t);
+        res += (spu->reg[*(uint8_t*)spu->curCommand]);
+        spu->curCommand += sizeof(uint8_t);
+        res += *(int*)spu->curCommand;
+        spu->curCommand += sizeof(int);
+        return res;
+    }
+
+    return *getArgsAdress(spu);
 }
 
 
