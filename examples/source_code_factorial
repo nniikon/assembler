@@ -1,0 +1,42 @@
+call main
+hlt
+
+main:
+	in
+	pop rax
+	call factorial
+	push rax
+	out
+ret
+
+; input  - rax 
+; output - rax 
+factorial:
+	push rax
+	pop rbx
+
+	push 1
+	pop rax
+
+	call factorialRecursive
+ret
+
+factorialRecursive:
+	push rbx
+	push 1
+	je lastIteration
+
+	push rax
+	push rbx
+	mul
+	pop rax
+
+	push rbx
+	push 1
+	sub
+	pop rbx
+
+	call factorialRecursive
+
+	lastIteration:
+		ret
