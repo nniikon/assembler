@@ -160,9 +160,3 @@ twoSolutions:
     div
     out
 ret
-
-
-incorrectEquation:
-    push -1
-    out
-ret
