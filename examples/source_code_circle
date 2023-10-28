@@ -1,0 +1,118 @@
+push 20; X center
+pop [1251]
+
+push 12; Y center
+pop [1252]
+
+push 10; radius
+pop [1253]
+
+push 25; VRAM Y capacity
+pop [1254]
+
+push 50; VRAM X capacity
+pop [1255]
+
+push 2; X multiplier
+pop [1256]
+
+call main:
+
+
+main:
+    call printCircle
+
+    push 30
+    pop [1251]
+    push 20
+    pop [1252]
+
+    call printCircle
+
+    push 40
+    pop [1251]
+    push 8
+    pop [1252]
+
+    call printCircle
+    HLT
+
+printCircle:
+    push 0
+    pop rbx; Y
+    FOR_Y:
+        push 0
+        pop rax; X
+        FOR_X:
+
+            call getDistance
+
+            push rcx
+            push [1253]
+            jbe belowRadius   ; distance <= radius
+            jump aboveRadius ;  distance >  radius
+
+            belowRadius:
+                call paint
+            aboveRadius:
+
+        push rax+1
+        pop rax
+        push rax
+        push [1255]
+        jb FOR_X
+    push rbx+1
+    pop rbx
+    push rbx
+    push [1254]
+    jb FOR_Y
+ret
+
+
+getDistance:
+    push rax
+    push [1251]
+    sub
+
+    push rax
+    push [1251]
+    sub
+
+    mul
+
+    push [1256]
+
+    div
+
+    push rbx
+    push [1252]
+    sub
+
+    push rbx
+    push [1252]
+    sub
+
+    mul
+
+    add
+
+    sqrt
+
+    pop rcx
+ret
+
+
+
+paint:
+    push rbx; Y
+    push [1255]
+    mul
+    push rax
+    add
+    pop rdx
+
+    push 1
+    push [rdx]
+    add
+    pop [rdx]
+ret
