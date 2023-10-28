@@ -423,7 +423,7 @@ void stackDump_internal(const Stack* stk, const StackError err,
             if (i == stk->size)  printColor("blue", "%s", " <\n");
             else                 print("  \n");
         }
-        #ifdef CANARY_PROTECT        
+        #ifdef CANARY_PROTECT
         canary_t rightCanary = *(canary_t*)(stk->data + stk->capacity);
         if (rightCanary == CANARY_VALUE)
             printColor(green ,"\t\t *rightCanary:" CANARY_FORMAT "\n", rightCanary);

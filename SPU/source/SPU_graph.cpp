@@ -3,9 +3,9 @@
 
 void renderRam_console(const int* ram, const size_t size)
 {
-    system("clear");
+    //system("clear");
     assert(SPU_VRAM_HEIGHT * SPU_VRAM_WIDTH + SPU_VRAM_SHIFT <= size);
-    const int* vram = ram + SPU_VRAM_SHIFT;
+    const int* vram = ram;
 
     char buffer[(SPU_VRAM_HEIGHT) * (SPU_VRAM_WIDTH + 1)] = {};
 

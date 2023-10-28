@@ -19,7 +19,6 @@ struct SPU
     uint8_t* commands;
 };
 
-
 enum SPU_Error
 {
     SPU_NO_ERROR,

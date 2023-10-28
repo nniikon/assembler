@@ -93,22 +93,22 @@ ParseError getFileSize(const char* fileName, size_t* size)
 
 static int getArgsValue(SPU* spu)
 {
-    uint8_t cmd = *(uint8_t*)spu->curCommand;
+    uint8_t cmd = ((uint8_t*)spu->curCommand)[0];
     spu->curCommand += sizeof(uint8_t);
 
     int res = 0;
 
-    if (cmd & COM_REGISTER_BIT)
+    if (cmd & CMD_REGISTER_BIT)
     {
         res += spu->reg[*(uint8_t*)spu->curCommand];
         spu->curCommand += sizeof(uint8_t);
     }
-    if (cmd & COM_IMMEDIATE_BIT)
+    if (cmd & CMD_IMMEDIATE_BIT)
     {
         res += *(int*)spu->curCommand;
-        spu->curCommand += sizeof(int);    
+        spu->curCommand += sizeof(int);
     }
-    if (cmd & COM_MEMORY_BIT)       
+    if (cmd & CMD_MEMORY_BIT)
     {
         res = spu->ram[res / FLOATING_POINT_COEFFICIENT];
     }
@@ -125,19 +125,19 @@ static int* getArgsAdress(SPU* spu)
     int* res = NULL;
     int resSum = 0;
 
-    if (cmd & COM_REGISTER_BIT)
+    if (cmd & CMD_REGISTER_BIT)
     {
         res = &(spu->reg[*(uint8_t*)spu->curCommand]);
         resSum += spu->reg[*(uint8_t*)spu->curCommand];
         spu->curCommand += sizeof(uint8_t);
     }
-    if (cmd & COM_IMMEDIATE_BIT)
+    if (cmd & CMD_IMMEDIATE_BIT)
     {
         res = (int*)spu->curCommand;
         resSum += *(int*)spu->curCommand;
-        spu->curCommand += sizeof(int);    
+        spu->curCommand += sizeof(int);
     }
-    if (cmd & COM_MEMORY_BIT)       
+    if (cmd & CMD_MEMORY_BIT)
     {
         res = &(spu->ram[resSum / FLOATING_POINT_COEFFICIENT]);
     }
@@ -151,20 +151,21 @@ SPU_Error execProgram(SPU* spu)
     DUMP_PRINT("execProgram( buffer <%p> )\n", spu->curCommand);
 
     while (true)
-    {        
+    {
         DUMP_PRINT("currentBufferID = <%u>\n", *spu->curCommand);
-        
-        switch (*(uint8_t*)spu->curCommand & COM_COMMAND_BITS)
+        DUMP_PRINT("currectAdress   = <%zu>\n", (size_t)spu->curCommand - (size_t)spu->commands);
+
+        switch (*(uint8_t*)spu->curCommand & CMD_COMMAND_BITS)
         {
             #define DEF_CMD(name, byte_code, ...)\
-                case COMMANDS[CMD_ ## name].code & COM_COMMAND_BITS: __VA_ARGS__; break;
-            
+                case COMMANDS[CMD_ ## name].code & CMD_COMMAND_BITS: __VA_ARGS__; break;
+
             #include "../../CPU_commands.h"
 
             #undef DEF_CMD
 
-            default: 
-                return SPU_INCORRECT_INPUT;     
+            default:
+                return SPU_INCORRECT_INPUT;
                 break;
         }
         // renderRam_console(spu->ram, SPU_RAM_CAPACITY);
