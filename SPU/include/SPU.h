@@ -28,6 +28,7 @@ enum SPU_Error
     SPU_NULL_SPU,
     SPU_NULL_ARRAY,
     SPU_MEM_ALLOC_ERROR,
+    SPU_PARSE_ERROR,
 };
 
 enum ParseError
@@ -47,7 +48,7 @@ ParseError fileToIntBuffer(uint8_t** buffer, const size_t size, const char* FILE
 
 SPU_Error execProgram(SPU* spu);
 
-SPU_Error spuInit(SPU* spu, uint8_t* commandsArr);
+SPU_Error spuInit(SPU* spu, const char* inputFileName);
 
 SPU_Error spuDtor(SPU* spu);
 

@@ -24,28 +24,15 @@ int main(int argc, char** argv)
 
     SPU spu = {};
     SPU_Error err = SPU_NO_ERROR;
-    ParseError parseError = PARSE_NO_ERROR;
 
-
-    uint8_t* buffer = NULL;
-    size_t bufferSize = 0;
-    parseError = getFileSize(inputFileName, &bufferSize);
-    CHECK_PARSE_ERROR(parseError);
-
-    parseError = fileToIntBuffer(&buffer, bufferSize, inputFileName);
-    CHECK_PARSE_ERROR(parseError);
-
-
-    spuInit(&spu, buffer);
+    spuInit(&spu, inputFileName);
 
     err = execProgram(&spu); 
     if (err != SPU_NO_ERROR)
     {
-        free(buffer);
         spuDtor(&spu);
         fprintf(stderr, "ERROR OCCURRED\n");
         return err;
     }
     spuDtor(&spu);
-    free(buffer);
 }

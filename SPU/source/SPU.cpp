@@ -168,32 +168,44 @@ SPU_Error execProgram(SPU* spu)
 }
 
 
-SPU_Error spuInit(SPU* spu, uint8_t* commandsArr)
+SPU_Error spuInit(SPU* spu, const char* inputFileName)
 {
     DUMP_PRINT("SPU initialization started:\n");
 
-    // Error handling.
-    if (spu == NULL)         return SPU_NULL_SPU;
-    if (commandsArr == NULL) return SPU_NULL_ARRAY;
+    assert(spu);
+    assert(inputFileName);
+
+    uint8_t* buffer = NULL;
+    size_t bufferSize = 0;
+    ParseError parseErr = getFileSize(inputFileName, &bufferSize);
+    if (parseErr != PARSE_NO_ERROR)
+    {
+        fprintf(stderr, "Spu init: parsing error\n");
+        return SPU_PARSE_ERROR;
+    }
+    parseErr = fileToIntBuffer(&buffer, bufferSize, inputFileName);
+    if (parseErr != PARSE_NO_ERROR)
+    {
+        fprintf(stderr, "Spu init: parsing error\n");
+        return SPU_PARSE_ERROR;
+    }
 
     // SPU init.
-    spu->curCommand = commandsArr;
-    spu->commands   = commandsArr;
-    
+    spu->curCommand = buffer;
+    spu->commands   = buffer;
+
     // Poison the registers.
     for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
         spu->reg[i] = REG_POISON;
-    
-    // Stack init.
-    setStackLogFile("stackLog.htm"); // TODO: FIX CRINGE
 
     // Stack init.
+    setStackLogFile("stackLog.htm");
     StackError stackError = stackInit(&spu->stack);
     // Stack error handling.
     if (stackError != STACK_NO_ERROR)
     {
         DUMP_PRINT("Stack Error occured:\n");
-        
+
         stackDump(&spu->stack, stackError);
         return SPU_STACK_ERROR;
     }
@@ -203,7 +215,7 @@ SPU_Error spuInit(SPU* spu, uint8_t* commandsArr)
     if (tempRam == NULL)
     {
         DUMP_PRINT("Error allocating memory for RAM.\n");
-        
+
         stackDtor(&spu->stack);
         return SPU_MEM_ALLOC_ERROR;
     }
@@ -239,6 +251,7 @@ SPU_Error spuDtor(SPU* spu)
 
     // Free the ram.
     free(spu->ram);
+    free(spu->commands);
 
     DUMP_PRINT("SPU destruction ended successfully:\n");
     return SPU_NO_ERROR;

@@ -5,13 +5,18 @@
 #define move_buffer_pos(shift) spu->curCommand += (shift);
 #define set_buffer_pos(shift) spu->curCommand = spu->commands + shift; 
 #define cur_buf_shift (int)((size_t)spu->curCommand - (size_t)spu->commands) 
+
+// This command automatically moves the buffer position.
 #define arg_value getArgsValue(spu);
+// This command automatically moves the buffer position.
 #define arg_adress getArgsAdress(spu);
+
 #define push(arg) stackPush(&spu->stack, arg);
 #define pop(arg) stackPop(&spu->stack, &arg);
 #define float_coef FLOATING_POINT_COEFFICIENT
+#define render renderRam_console(spu->ram, SPU_RAM_CAPACITY);
 
-// DEF_CMD (NAME, BYTE-CODE, SPU FUNCTION NAME)
+// DEF_CMD (NAME, BYTE-CODE, SPU FUNCTION)
 DEF_CMD(PUSH, 0b000'00001 | SGNTR_IMM | SGNTR_RAM | SGNTR_REG,  
     {
         int arg = arg_value;
@@ -144,12 +149,13 @@ DEF_CMD(COS,  0b000'01010,
         int value = 0;
         pop(value);
         push((int)(float_coef * cos((float)value / float_coef)));
-        
+
         DUMP_COMMAND("COS: <%g> = <%g>\n", (float)value / float_coef, 
                     (float)((int)(float_coef * cos((float)value / float_coef))) / float_coef);
         move_buffer_pos(sizeof(uint8_t));
     }
 )
+
 DEF_CMD(POP,  0b000'01011 | SGNTR_REG | SGNTR_RAM | SGNTR_IMM,
     {
         int value = 0;
@@ -159,6 +165,7 @@ DEF_CMD(POP,  0b000'01011 | SGNTR_REG | SGNTR_RAM | SGNTR_IMM,
         DUMP_COMMAND("POP: <%g>\n", (float)value / float_coef);
     }
 )
+
 DEF_CMD(JUMP, 0b000'01100 | SGNTR_IMM,
     {
         int value = arg_value;
@@ -175,10 +182,12 @@ DEF_CMD(name, byte_code | SGNTR_IMM,\
         int value2 = 0;\
         pop(value2);\
 \
+        DUMP_COMMAND("JUMP_CONDITION: %d V %d\n", value1, value2);\
         if (condition)\
         {\
             int value = arg_value;\
             set_buffer_pos(value);\
+            DUMP_COMMAND("Jump <%d>\n", value);\
         }\
         else\
         {\
@@ -200,6 +209,8 @@ DEF_CMD(CALL, 0b000'10011 | SGNTR_IMM,
         int curPos = cur_buf_shift;
         push(curPos);
         set_buffer_pos(value);
+
+        DUMP_COMMAND("CALL: <%d>\n", value);
     }
 )
 
@@ -208,6 +219,8 @@ DEF_CMD(ret, 0b000'10100,
         int value = 0;
         pop(value);
         set_buffer_pos(value);
+
+        DUMP_COMMAND("RET <%d>\n", value);
     }
 )
 
@@ -215,6 +228,7 @@ DEF_CMD(ret, 0b000'10100,
 
 DEF_CMD(HLT, 0b000'11111,
     {
+        render
         return SPU_NO_ERROR;
     }
 )
