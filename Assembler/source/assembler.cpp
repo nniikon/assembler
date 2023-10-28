@@ -169,7 +169,10 @@ static void setLabels(Assembler* ass)
     DUMP_PRINT("setLabels started\n");
     for (size_t line = 0; line < ass->inputText.nLines; line++)
     {
-        char* str = ass->inputText.line[line].str;
+        const char* str = ass->inputText.line[line].str;
+
+        moveToNextWord(&str, 0, DELIMS);
+        if (str == NULL) continue;
 
         ass->outputBufferPos = LABEL_POISON;
 
@@ -232,7 +235,8 @@ static bool putLabelToBuffer(const char** str, const size_t size, Assembler* ass
     return false;
 }
 
-static inline bool isNumber(char chr) {
+static inline bool isNumber(char chr) 
+{
     return (chr >= '0' && chr <= '9') || chr == '+' || chr == '-' || chr == '.';
 }
 
@@ -444,12 +448,12 @@ void assembly(Assembler* ass, FILE* outputFile)
 }
 
 
-AssemblerError AssInit(Assembler* ass, const char* inputFile)
+AssemblerError assInit(Assembler* ass, const char* inputFile)
 {
     assert(ass);
     assert(inputFile);
 
-    DUMP_PRINT("AssInit started\n");
+    DUMP_PRINT("assInit started\n");
 
     // Initialize input Text from the file.  
     ParseError error = textInit(inputFile, &ass->inputText);
@@ -481,14 +485,14 @@ AssemblerError AssInit(Assembler* ass, const char* inputFile)
         return err;
     }
 
-    DUMP_PRINT("AssInit success\n");
+    DUMP_PRINT("assInit success\n");
 
 
     return ASSEMBLER_NO_ERROR;
 }
 
 
-AssemblerError AssDtor(Assembler* ass)
+AssemblerError assDtor(Assembler* ass)
 {
     assert(ass);
     assert(ass->outputBuffer);

@@ -27,7 +27,7 @@ int main(int argc, char** argv)
         return ASSEMBLER_OPEN_FILE_ERROR;
     }
 
-    assErr = AssInit(&ass, inputFileName);
+    assErr = assInit(&ass, inputFileName);
     if (assErr != ASSEMBLER_NO_ERROR)
     {
         fclose(outputFile);
@@ -40,7 +40,7 @@ int main(int argc, char** argv)
 
     printAssError(&ass.errorArray, ass.inputText.line);
 
-    AssDtor(&ass);
+    assDtor(&ass);
     if (assErr != ASSEMBLER_NO_ERROR)
     {
         fprintf(stderr, "error destructing my ass.\n");

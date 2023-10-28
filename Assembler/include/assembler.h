@@ -21,7 +21,7 @@ struct Assembler
 {
     Text inputText;
     const char* inputFileName;
-    
+
     uint8_t* outputBuffer;
     size_t outputBufferPos;
 
@@ -34,8 +34,8 @@ struct Assembler
 
 void assembly(Assembler* ass, FILE* outputFile);
 
-AssemblerError AssInit(Assembler* ass, const char* inputFile);
+AssemblerError assInit(Assembler* ass, const char* inputFile);
 
-AssemblerError AssDtor(Assembler* ass); // ASS DESTRUCTOR
+AssemblerError assDtor(Assembler* ass); // ASS DESTRUCTOR
 
 #endif
