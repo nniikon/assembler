@@ -10,36 +10,6 @@ char getWordSize(size_t* size, const char* str, const char* delim)
     return str[*size];
 }
 
-void deleteMeaninglessSpaces(char* input) // todo: rewrite
-{
-    assert(input);
-    size_t inputLength = strlen(input);
-    size_t newStart = 0;
-    int newEnd = int(inputLength) - 1;
-
-    // Find the first non-space character.
-    while (newStart < inputLength && input[newStart] == ' ')
-    {
-        newStart++;
-    }
-
-    // Find the last non-space character.
-    while (newEnd > 0 && (input[newEnd] == ' ' || input[newEnd] == '\n'))
-    {
-        newEnd--;
-    }
-    int newLength = newEnd - (int)newStart;
-
-    // Rewrite input without the spaces.
-    for (int i = 0; i <= newLength; i++)
-    {
-        input[i] = input[i + newStart];
-    }
-
-    // End the string with '\0'.
-    input[newLength + 1] = '\0';
-}
-
 
 void moveToNextWord(const char** input, size_t size, const char* delim)
 {
@@ -53,4 +23,22 @@ void moveToNextWord(const char** input, size_t size, const char* delim)
 
     if (*input[0] == 0)
         (*input) = NULL;
+}
+
+
+bool chrAppearsMoreTimes(const char* str, const char chr, size_t amount)
+{
+    size_t count = 0;
+
+    str = strchr(str, chr);
+    while (str != NULL) 
+    {
+        str++;
+        count++;
+        if (count > amount)
+            return true;
+
+        str = strchr(str, chr);
+    }
+    return false;
 }
