@@ -9,6 +9,7 @@ main:
 	out
 ret
 
+
 ; input  - rax 
 ; output - rax 
 factorial:
