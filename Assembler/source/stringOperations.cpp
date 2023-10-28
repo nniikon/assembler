@@ -6,21 +6,11 @@ char getWordSize(size_t* size, const char* str, const char* delim)
     assert(str);
     assert(delim);
 
-    int delN = 0;
-    for (*size = 0; str[*size] != '\0'; (*size)++)
-    {
-        for (delN = 0; delim[delN] != '\0'; delN++)
-        {
-            if (str[*size] == delim[delN])
-            {
-                return delim[delN];
-            }
-        }
-    }
-    return delim[delN];
+    *size = strcspn(str, delim);
+    return str[*size];
 }
 
-void deleteMeaninglessSpaces(char* input)
+void deleteMeaninglessSpaces(char* input) // todo: rewrite
 {
     assert(input);
     size_t inputLength = strlen(input);
@@ -38,10 +28,10 @@ void deleteMeaninglessSpaces(char* input)
     {
         newEnd--;
     }
-    size_t newLength = newEnd - newStart;
+    int newLength = newEnd - (int)newStart;
 
     // Rewrite input without the spaces.
-    for (size_t i = 0; i <= newLength; i++)
+    for (int i = 0; i <= newLength; i++)
     {
         input[i] = input[i + newStart];
     }
@@ -51,44 +41,16 @@ void deleteMeaninglessSpaces(char* input)
 }
 
 
-void moveToNextWord(const char** input, const char* delim)
+void moveToNextWord(const char** input, size_t size, const char* delim)
 {
-    // Go until the first delimiter.
-    while ((*input)[0] != '\0')
-    {
-        bool isDel = false;
-        for (int j = 0; delim[j] != '\0'; j++)
-        {
-            if ((*input)[0] == delim[j])
-            {
-                isDel = true;
-                continue;
-            }
-        }
-        if (isDel == true)
-            break;
-        else
-            (*input)++;
-    }
+    assert(input);
+    assert(delim);
 
-    // When you meet the first delimiter. 
-    while ((*input)[0] != '\0')
-    {
-        bool isDel = false;
-        for (int j = 0; delim[j] != '\0'; j++)
-        {
-            if ((*input)[0] == delim[j])
-            {
-                isDel = true;
-                continue;
-            }
-        }
-        if (isDel == false)
-            return;
-        else
-            (*input)++;
-    }
+    *input += size;
 
-    (*input) = NULL;
-    return;   
+    size_t shift = strspn(*input, delim);
+    *input += shift;
+
+    if (*input[0] == 0)
+        (*input) = NULL;
 }
