@@ -170,6 +170,18 @@ SPU_Error spuInit(SPU* spu, const char* inputFileName)
     }
     spu->ram = tempRam;
 
+    // Allocate memory for VRAM char buffer.                         VVVVV for '\n'
+    char* tempVram = (char*) calloc(SPU_VRAM_HEIGHT * (SPU_VRAM_WIDTH + 1), sizeof(char));
+    if (tempVram == NULL)
+    {
+        DUMP_PRINT("Error allocating memory for VRAM.\n");
+
+        free(spu->ram);
+        stackDtor(&spu->stack);
+        return SPU_MEM_ALLOC_ERROR;
+    }
+    spu->vramBuffer = tempVram;
+
     DUMP_PRINT("SPU initialization ended successfully:\n");
     return SPU_NO_ERROR;
 }
@@ -199,6 +211,7 @@ SPU_Error spuDtor(SPU* spu)
     // Free the ram.
     free(spu->ram);
     free(spu->commands);
+    free(spu->vramBuffer);
 
     DUMP_PRINT("SPU destruction ended successfully:\n");
     return SPU_NO_ERROR;

@@ -14,7 +14,7 @@
 #define push(arg) stackPush(&spu->stack, arg);
 #define pop(arg) stackPop(&spu->stack, &arg);
 #define float_coef FLOATING_POINT_COEFFICIENT
-#define render renderRam_console(spu->ram, SPU_RAM_CAPACITY);
+#define render renderRam_console(spu->ram, spu->vramBuffer, SPU_RAM_CAPACITY);
 
 // DEF_CMD (NAME, BYTE-CODE, SPU FUNCTION)
 DEF_CMD(PUSH, 0b000'00001 | SGNTR_IMM | SGNTR_RAM | SGNTR_REG,  
