@@ -1,14 +1,13 @@
 #ifndef SPU_H
 #define SPU_H 
 
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <stdio.h>
 #include <malloc.h>
 #include "../../CPU_common.h"
 #include "stack.h"
 #include "colors.h"
 #include "SPU_graph.h"
+#include "SPU_fileHandling.h"
 
 struct SPU
 {
@@ -30,21 +29,6 @@ enum SPU_Error
     SPU_MEM_ALLOC_ERROR,
     SPU_PARSE_ERROR,
 };
-
-enum ParseError
-{
-    PARSE_NO_ERROR,
-    PARSE_FILE_OPEN_ERROR,
-    PARSE_MEM_ALLOCATION_ERROR,
-    PARSE_STAT_ERROR,
-    PARSE_INVALID_ARGS,
-    PARSE_UNEXPECTED_ERROR,
-    PARSE_FREAD_ERROR,
-};
-
-ParseError getFileSize(const char* fileName, size_t* size);
-
-ParseError fileToIntBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME);
 
 SPU_Error execProgram(SPU* spu);
 

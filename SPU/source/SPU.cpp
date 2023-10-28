@@ -49,48 +49,6 @@ const int REG_POISON = INT32_MIN;
 #endif
 
 
-ParseError fileToIntBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME)
-{
-    uint8_t* tempBuf = (uint8_t*)calloc(size, 1);
-    if (tempBuf == NULL)
-    {
-        return PARSE_MEM_ALLOCATION_ERROR;
-    }
-
-    FILE* file = fopen(FILE_NAME, "rb");
-    if (file == NULL)
-    {
-        return PARSE_FILE_OPEN_ERROR;
-    }
-
-    size_t sizeRef = fread(tempBuf, 1, size, file);
-    if (sizeRef != size)
-    {
-        return PARSE_FREAD_ERROR;
-    }
-
-    fclose(file);
-
-    *buffer = tempBuf;
- 
-    return PARSE_NO_ERROR;
-}
-
-
-ParseError getFileSize(const char* fileName, size_t* size)
-{
-    struct stat bf = {};
-    int error = stat(fileName, &bf);
-    if (error == -1)
-    {
-        return PARSE_STAT_ERROR;
-    }
-
-    *size = bf.st_size;
-    return PARSE_NO_ERROR;
-}
-
-
 static int* getArgsAdress(SPU* spu)
 {
     uint8_t cmd = *(uint8_t*)spu->curCommand;
@@ -177,14 +135,15 @@ SPU_Error spuInit(SPU* spu, const char* inputFileName)
 
     uint8_t* buffer = NULL;
     size_t bufferSize = 0;
-    ParseError parseErr = getFileSize(inputFileName, &bufferSize);
-    if (parseErr != PARSE_NO_ERROR)
+    SPU_fileError fileErr = getFileSize(inputFileName, &bufferSize);
+    if (fileErr != SPU_FILE_NO_ERROR)
     {
         fprintf(stderr, "Spu init: parsing error\n");
         return SPU_PARSE_ERROR;
     }
-    parseErr = fileToIntBuffer(&buffer, bufferSize, inputFileName);
-    if (parseErr != PARSE_NO_ERROR)
+
+    fileErr = fileToIntBuffer(&buffer, bufferSize, inputFileName);
+    if (fileErr != SPU_FILE_NO_ERROR)
     {
         fprintf(stderr, "Spu init: parsing error\n");
         return SPU_PARSE_ERROR;
@@ -220,8 +179,6 @@ SPU_Error spuInit(SPU* spu, const char* inputFileName)
         return SPU_MEM_ALLOC_ERROR;
     }
     spu->ram = tempRam;
-
-
 
     DUMP_PRINT("SPU initialization ended successfully:\n");
     return SPU_NO_ERROR;
