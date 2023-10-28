@@ -50,7 +50,7 @@ printCircle:
             push rcx
             push [1253]
             jbe belowRadius   ; distance <= radius
-            jump aboveRadius ;  distance >  radius
+            jump aboveRadius  ; distance >  radius
 
             belowRadius:
                 call paint
