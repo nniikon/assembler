@@ -29,6 +29,7 @@ enum SPU_Error
     SPU_NULL_ARRAY,
     SPU_MEM_ALLOC_ERROR,
     SPU_FILE_ERROR,
+    SPU_PARSE_ARGS_ERROR,
 };
 
 SPU_Error execProgram(SPU* spu);

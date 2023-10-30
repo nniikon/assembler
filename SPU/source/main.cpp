@@ -20,7 +20,8 @@ do                                        \
 int main(int argc, char** argv)
 {
     const char* inputFileName = NULL;
-    parseArguments(argc, argv, &inputFileName);
+    if (!parseArguments(argc, argv, &inputFileName))
+        return SPU_PARSE_ARGS_ERROR;
 
     SPU spu = {};
     SPU_Error err = SPU_NO_ERROR;
