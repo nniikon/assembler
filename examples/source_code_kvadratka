@@ -4,7 +4,53 @@ HLT
 main:
     call setCoefficients
     call quadraticSolver
+    call printAnswers
 ret
+
+
+printAnswers:
+    push 0
+    push rax
+    je printNoSolutions
+
+    push 1
+    push rax
+    je printOneSolution
+
+    push 2
+    push rax
+    je printTwoSolutions
+
+    jump printInfSolutions
+
+    printNoSolutions:
+        push 0
+        out
+        ret
+
+    printOneSolution:
+        push 1
+        out
+        push rbx
+        out
+        ret
+
+    printTwoSolutions:
+        push 2
+        out
+        push rbx
+        out
+        push rcx
+        out
+        ret
+
+    printInfSolutions:
+        push -1
+        out
+        ret
+
+ret
+
 
 quadraticSolver:
     push 0
@@ -89,18 +135,18 @@ constEquation:
 
     c_zero:
         push -1
-        out
+        pop rax
         ret
     c_nonzero:
         push 0
-        out
+        pop rax
         ret
 ret
 
 
 linearOneSolution:
     push 1
-    out
+    pop rax
 
     push rcx
     push rbx
@@ -108,30 +154,32 @@ linearOneSolution:
 
     push -1
     mul
-    out
+    pop rbx
 ret
 
 
 noSolutions:
     push 0
-    out
+    pop rax
 ret
 
 oneSolution:
     push 1
-    out
+    pop rax
+
     push rbx
     push -1
     mul
     push 2
     div
-    out
+
+    pop rbx
 ret
 
 
 twoSolutions:
     push 2
-    out
+
     push -1
     push rbx
     mul
@@ -143,7 +191,6 @@ twoSolutions:
     push 2
     mul
     div
-    out
 
     push -1
     push rbx
@@ -158,5 +205,8 @@ twoSolutions:
     push 2
     mul
     div
-    out
+    
+    pop rcx
+    pop rbx
+    pop rax
 ret
