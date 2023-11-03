@@ -16,7 +16,7 @@ pop [1255]
 push 2; X multiplier
 pop [1256]
 
-call main:
+call main
 
 
 main:
