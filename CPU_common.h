@@ -42,10 +42,9 @@ const uint8_t CMD_MEMORY_BIT    = 0b100'00000;
 const uint8_t CMD_COMMAND_BITS  = 0b000'11111;
  
 
-const size_t REGISTER_LENGTH = 3;
 const Register REGS[] =
 {
-    {"rax", 0}, // NACHNI C SEBYA (zacherknuto) C NULYA!
+    {"rax", 0},
     {"rbx", 1},
     {"rcx", 2},
     {"rdx", 3},
