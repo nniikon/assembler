@@ -155,9 +155,6 @@ static CommandError setLabelName(const char* str, Assembler* ass)
 
 static bool tryPuttingRegToBuffer(const char** str, const size_t size, Assembler* ass)
 {
-    if (size != REGISTER_LENGTH) 
-        return false;
-
     for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
     {
         if (strncasecmp(*str, REGS[i].name, size) == 0)
