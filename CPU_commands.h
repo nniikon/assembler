@@ -20,7 +20,7 @@
 #define render renderRam_console(spu->ram, spu->vramBuffer, SPU_RAM_CAPACITY);
 
 // DEF_CMD (NAME, BYTE-CODE, SPU FUNCTION)
-DEF_CMD(PUSH, 0b000'00001 | SGNTR_IMM | SGNTR_RAM | SGNTR_REG,  
+DEF_CMD(PUSH, 0b000'00001 | SGNTR_IMM | SGNTR_RAM | SGNTR_REG,
     {
         int arg = arg_value;
 
