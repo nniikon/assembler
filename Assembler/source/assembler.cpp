@@ -14,6 +14,7 @@ struct AssCommand
 
     size_t cmdID;
 
+    size_t nBrackets;
     size_t line;
 
     CommandError error;
@@ -25,7 +26,7 @@ const int LABEL_POISON = -1;
 
 const int NUMBER_OF_COMPILATIONS = 2;
 
-const char* DELIMS = "\t +];";
+const char* ARG_DELIMS = "\t +]";
 
 /**
  * @brief Puts byte code into the given file.
@@ -40,11 +41,11 @@ static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, Ass
 
 static CommandError setLabelName(const char* str, Assembler* ass);
 
-static bool putRegToBuffer(const char** str, const size_t size, Assembler* ass);
+static bool tryPuttingRegToBuffer(const char** str, const size_t size, Assembler* ass);
 
-static bool putLabelToBuffer(const char** str, const size_t size, Assembler* ass);
+static bool tryPuttingLabelToBuffer(const char** str, const size_t size, Assembler* ass);
 
-static bool putNumberToBuffer(const char** str, const size_t size, Assembler* ass);
+static bool tryPuttingNumberToBuffer(const char** str, const size_t size, Assembler* ass);
 
 static CommandError setArgs(const char** str, Assembler* ass, AssCommand* command);
 
@@ -65,7 +66,7 @@ static void moveToNextArgument(const char** str, size_t size, const char del)
     if (del == '\0' || del == ']')
         *str = NULL;
     else
-        moveToNextWord(str, size, DELIMS);
+        moveToNextWord(str, size, ARG_DELIMS);
 }
 
 
@@ -84,7 +85,7 @@ static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, Ass
     {
         if (strncasecmp(*str, COMMANDS[cmdID].name, size) == 0)
         {
-            ass->outputBuffer[ass->outputBufferPos] = (COMMANDS[cmdID].code & CMD_COMMAND_BITS); // https://www.youtube.com/watch?v=UMfMekip6y8
+            ass->outputBuffer[ass->outputBufferPos] = (COMMANDS[cmdID].code & CMD_COMMAND_BITS);
             ass->outputBufferPos += sizeof(uint8_t); 
 
             DUMP_PRINT("Command name: <%s>\n", COMMANDS[cmdID].name);
@@ -134,7 +135,7 @@ static CommandError setLabelName(const char* str, Assembler* ass)
     }
 
     // Set the values.
-    if (ass->labelArr.emptyLabel > ass->labelArr.nLabels)
+    if (ass->labelArr.emptyLabel >= ass->labelArr.nLabels)
         ass->labelArr.nLabels = ass->labelArr.emptyLabel + 1;
 
     ass->labelArr.labels[ass->labelArr.emptyLabel].adress = (int) ass->outputBufferPos;
@@ -152,7 +153,7 @@ static CommandError setLabelName(const char* str, Assembler* ass)
 }
 
 
-static bool putRegToBuffer(const char** str, const size_t size, Assembler* ass)
+static bool tryPuttingRegToBuffer(const char** str, const size_t size, Assembler* ass)
 {
     if (size != REGISTER_LENGTH) 
         return false;
@@ -175,7 +176,7 @@ static bool putRegToBuffer(const char** str, const size_t size, Assembler* ass)
 }
 
 
-static bool putLabelToBuffer(const char** str, const size_t size, Assembler* ass)
+static bool tryPuttingLabelToBuffer(const char** str, const size_t size, Assembler* ass)
 {
     assert(str);
     assert(ass);
@@ -208,10 +209,10 @@ static bool putLabelToBuffer(const char** str, const size_t size, Assembler* ass
 
 static inline bool isNumber(char chr) 
 {
-    return (chr >= '0' && chr <= '9') || chr == '+' || chr == '-' || chr == '.';
+    return (isdigit(chr) || chr == '+' || chr == '-' || chr == '.');
 }
 
-static bool putNumberToBuffer(const char** str, const size_t size, Assembler* ass)
+static bool tryPuttingNumberToBuffer(const char** str, const size_t size, Assembler* ass)
 {
     DUMP_PRINT("Putting number to buffer.\n");
     for (size_t i = 0; i < size; i++)
@@ -234,27 +235,29 @@ static bool putNumberToBuffer(const char** str, const size_t size, Assembler* as
 static CommandError setArgs(const char** str, Assembler* ass, AssCommand* command)
 {
     assert(str);
-
-    if (*str == NULL) return CMD_NO_ERROR;
-
     assert(ass);
     assert(command);
+
+    // If the recursion is over.
+    if (*str == NULL) return CMD_NO_ERROR;
+
 
     DUMP_PRINT("setArgs started with <%s>\n", *str);
 
     size_t size = 0;
-    char del = getWordSize(&size, *str, DELIMS);
+    moveToNextWord(str, 0, ARG_DELIMS);
+    char del = getWordSize(&size, *str, ARG_DELIMS);
 
     // If the first character is a letter, treat it as a word. 
     if (isalpha((*str)[0]))
     {
-        if (putRegToBuffer(str, size, ass))
+        if (tryPuttingRegToBuffer(str, size, ass))
         {
             command->hasReg = true;
             moveToNextArgument(str, size, del);
             return setArgs(str, ass, command);
         }
-        else if (putLabelToBuffer(str, size, ass))
+        else if (tryPuttingLabelToBuffer(str, size, ass))
         {
             command->hasLabel = true;
             moveToNextArgument(str, size, del);
@@ -269,11 +272,12 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
     {
         command->hasMem = true;
         (*str)++;
+        command->nBrackets++;
         return setArgs(str, ass, command);
     }
     else if (isNumber((*str)[0]))
     {
-        if (putNumberToBuffer(str, size, ass)) 
+        if (tryPuttingNumberToBuffer(str, size, ass)) 
         {
             command->hasNum = true;
             moveToNextArgument(str, size, del);
@@ -318,7 +322,7 @@ static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos)
 }
 
 
-#define CHECK_PUSH_CMD_ERR(err, isLastAssembly)\
+#define CHECK_PUSH_CMD_ERR(err)\
     if ((err) != CMD_NO_ERROR && (isLastAssembly))\
     {\
         AssError tempError = {err, line, ass->inputFileName};\
@@ -347,9 +351,14 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile, const bool isLas
         const char* str = ass->inputText.line[line].str;
 
         // Skip insignificant characters.
-        moveToNextWord(&str, 0, DELIMS);
+        moveToNextWord(&str, 0, ARG_DELIMS);
         if (str == NULL) continue;
 
+        // Check the correctness of brackets.
+        if (nChrInLine(str, '[') != nChrInLine(str, ']'))
+        {
+            CHECK_PUSH_CMD_ERR(CMD_MISMATCHED_BRACKET);
+        }
         IF_DUMP_DEBUG(fputc('\n', stderr));
         DUMP_PRINT("Analysing line num: %ld\n", line);
         DUMP_PRINT("<%s>\n", str);
@@ -376,25 +385,24 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile, const bool isLas
         // If the line has ':' in it...
         if (strchr(str, ':') != NULL)
         {
-            err = setLabelName(str, ass); // Set the label, ...
-            CHECK_PUSH_CMD_ERR(err, isLastAssembly);
+            err = setLabelName(str, ass); // Set the label.
+            CHECK_PUSH_CMD_ERR(err);
             continue;
         }
-        // else))), ...
         else
         {
             // Threat the first word as a command name.
             err = putCommandNameToBuffer(&str, ass, &command);
-            CHECK_PUSH_CMD_ERR(err, isLastAssembly);
+            CHECK_PUSH_CMD_ERR(err);
         }
         // Set the args.
         err = setArgs(&str, ass, &command);
-        CHECK_PUSH_CMD_ERR(err, isLastAssembly);
+        CHECK_PUSH_CMD_ERR(err);
 
         adjustCommandCode(&command, ass, cmdNameBufferPos);
 
         err = checkCommandCorrectness(&command, ass, cmdNameBufferPos);
-        CHECK_PUSH_CMD_ERR(err, isLastAssembly);
+        CHECK_PUSH_CMD_ERR(err);
 
         if (hasComments)
             *commentPtr = COMMENTS_CHR;
@@ -405,6 +413,8 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile, const bool isLas
 
 void assembly(Assembler* ass, FILE* outputFile)
 {
+    assert(ass);
+    assert(outputFile);
     for (int i = 0; i < NUMBER_OF_COMPILATIONS; i++)
     {
         DUMP_PRINT("File name: %s\n", ass->inputFileName);
@@ -510,7 +520,6 @@ static CommandError checkCommandCorrectness(AssCommand* cmd, Assembler* ass, siz
         // If the bit is unexpected...
         if (refBit == 0 && bit == 1) 
         {
-            // TODO: better error recognision.
             DUMP_PRINT("Incorrect bit in encountered\n");
             return CMD_INVALID_ARG; // ... return error.
         }

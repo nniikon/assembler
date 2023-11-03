@@ -42,3 +42,18 @@ bool chrAppearsMoreTimes(const char* str, const char chr, size_t amount)
     }
     return false;
 }
+
+
+size_t nChrInLine(const char* str, const char chr)
+{
+    size_t count = 0;
+
+    str = strchr(str, chr);
+    while (str != NULL) 
+    {
+        str++;
+        count++;
+        str = strchr(str, chr);
+    }
+    return count;
+}
