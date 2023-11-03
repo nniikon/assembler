@@ -8,8 +8,7 @@ const int REG_POISON = INT32_MIN;
 
 static int* getArgsAdress(SPU* spu)
 {
-    uint8_t cmd = *(uint8_t*)spu->curCommand;
-    spu->curCommand += sizeof(uint8_t);
+    uint8_t cmd = ((uint8_t*)spu->curCommand)[-1];
 
     int* res = NULL;
     int resSum = 0;
@@ -37,14 +36,13 @@ static int* getArgsAdress(SPU* spu)
 
 static int getArgsValue(SPU* spu)
 {
-    uint8_t cmd = ((uint8_t*)spu->curCommand)[0];
+    uint8_t cmd = ((uint8_t*)spu->curCommand)[-1];
 
     int res = 0;
 
     // Since 'rax + 5' doesn't have its own variable, it needs to be handled individually.
     if ((cmd & CMD_REGISTER_BIT) && (cmd & CMD_IMMEDIATE_BIT) && !(cmd & CMD_MEMORY_BIT))
     {
-        spu->curCommand += sizeof(uint8_t);
         res += (spu->reg[*(uint8_t*)spu->curCommand]);
         spu->curCommand += sizeof(uint8_t);
         res += *(int*)spu->curCommand;
@@ -66,10 +64,13 @@ SPU_Error execProgram(SPU* spu)
         DUMP_PRINT("currentBufferID = <%u>\n", *spu->curCommand);
         DUMP_PRINT("currectAdress   = <%zu>\n", (size_t)spu->curCommand - (size_t)spu->commands);
 
-        switch (*(uint8_t*)spu->curCommand & CMD_COMMAND_BITS)
+        switch (((uint8_t*)spu->curCommand)[0] & CMD_COMMAND_BITS)
         {
             #define DEF_CMD(name, byte_code, ...)\
-                case COMMANDS[CMD_ ## name].code & CMD_COMMAND_BITS: __VA_ARGS__; break;
+                case COMMANDS[CMD_ ## name].code & CMD_COMMAND_BITS:\
+                spu->curCommand++;\
+                __VA_ARGS__;\
+                break;
 
             #include "../../CPU_commands.h"
 
