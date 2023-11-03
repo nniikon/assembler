@@ -4,7 +4,6 @@
 #include <assert.h>
 #include "../../lib/parse.h"
 #include "../../CPU_common.h"
-#include "colors.h"
 #include "ass_config.h"
 #include "stringOperations.h"
 #include "ass_err.h"
@@ -17,6 +16,14 @@ struct Label
 };
 
 
+struct LabelArr
+{
+    Label* labels;
+    size_t emptyLabel;
+    size_t nLabels;
+};
+
+
 struct Assembler
 {
     Text inputText;
@@ -25,8 +32,7 @@ struct Assembler
     uint8_t* outputBuffer;
     size_t outputBufferPos;
 
-    Label labels[MAX_NUMBER_OF_LABELS];
-    size_t emptyLabel;
+    LabelArr labelArr;
 
     AssErrorArray errorArray;
 };

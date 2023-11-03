@@ -1,5 +1,7 @@
 #include "../include/ass_err.h"
 
+#define DUMP_DEBUG
+#include "../../lib/dump.h"
 
 static const char* errorStr[] = 
 {
@@ -9,27 +11,6 @@ static const char* errorStr[] =
     #undef DEF_ERR
 };
 
-#define ASSEMBLER_DEBUG
-
-#ifdef ASSEMBLER_DEBUG
-    #define DUMP_PRINT(...)\
-    do\
-    {\
-        fprintf(stderr, "file: %s line: %d\t\t", __FILE__, __LINE__);\
-        fprintf(stderr, __VA_ARGS__);\
-    } while (0)
-
-    #define DUMP_PRINT_CYAN(...)\
-    do\
-    {\
-        fprintf(stderr, CYAN "file: %s line: %d\t\t", __FILE__, __LINE__);\
-        fprintf(stderr, __VA_ARGS__);\
-        fprintf(stderr, RESET);\
-    } while (0)
-#else
-    #define DUMP_PRINT(...) do {} while(0)
-    #define DUMP_PRINT_CYAN(txt) do {} while(0) 
-#endif
 
 AssemblerError AssErrorInit(AssErrorArray* errArr)
 {
@@ -58,12 +39,12 @@ void AssErrorDtor(AssErrorArray* errArr)
 
 void printAssError(AssErrorArray* errArr, const Line* line)
 {
-
     for (size_t errorID = 0; errorID < errArr->emptyIndex; errorID++)
     {
         AssError cmd = errArr->err[errorID];
 
-        fprintf(stderr, "%s(%zu): " MAGENTA "%s" RESET "\n", errArr->err[errorID].fileName, cmd.line + 1, errorStr[(int)cmd.err]);       
+        fprintf(stderr, "%s", errArr->err[errorID].fileName);
+        fprintf(stderr, "(%zu): " MAGENTA "%s" RESET "\n", cmd.line + 1, errorStr[(int)cmd.err]);
         fprintf(stderr, "\t %zu| %s\n\n", cmd.line + 1, line[cmd.line].str);
     }
 }
@@ -74,8 +55,11 @@ AssemblerError pushAssErrArray(AssErrorArray* errArr, AssError* error)
     const size_t CAPACITY_MULTIPLIER = 2;
 
     DUMP_PRINT_CYAN("Pushing error\n");
-    if ((errArr->emptyIndex + 1) == errArr->capacity)
+    DUMP_PRINT("emptyIndex: %zu\n", errArr->emptyIndex);
+    DUMP_PRINT("capacity: %zu\n", errArr->capacity);
+    if ((errArr->emptyIndex + 1) >= errArr->capacity)
     {
+        DUMP_PRINT_CYAN("Increasing the capacity of the error array.\n");
         AssError* temp = (AssError*) realloc(errArr->err, errArr->capacity * CAPACITY_MULTIPLIER * sizeof(AssError));
         if (temp == NULL)
         {
@@ -83,11 +67,15 @@ AssemblerError pushAssErrArray(AssErrorArray* errArr, AssError* error)
             return ASSEMBLER_ALLOCATION_ERROR;
         }
         errArr->err = temp; 
+        DUMP_PRINT_CYAN("Old capacity: %zu\n", errArr->capacity);
         errArr->capacity *= CAPACITY_MULTIPLIER;
+        DUMP_PRINT_CYAN("New capacity: %zu\n", errArr->capacity);
+
     }
 
     errArr->err[errArr->emptyIndex].err = error->err;
     errArr->err[errArr->emptyIndex].line = error->line;
+    errArr->err[errArr->emptyIndex].fileName = error->fileName;
     errArr->emptyIndex++;
     DUMP_PRINT_CYAN("Pushing error success\n");
 

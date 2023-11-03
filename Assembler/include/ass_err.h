@@ -1,8 +1,10 @@
 #ifndef ASS_ERR_H
 #define ASS_ERR_H
-#include "../../lib/parse.h"
-#include "colors.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
 #include "ass_config.h"
+#include "../../lib/parse.h"
 
 enum CommandError 
 {
@@ -10,7 +12,7 @@ enum CommandError
     #define DEF_ERR(name, errStr) CMD_ ## name,
     #include "../include/errors.h"
     #undef DEF_ERR
-};  
+};
 
 
 enum AssemblerError
