@@ -6,6 +6,6 @@
 #include <stdlib.h>
 #include "SPU_config.h"
 
-void renderRam_console(const int* ram, char* vramBuffer, const size_t size);
+void renderRam(const int* ram, char* vramBuffer, const size_t size);
 
 #endif

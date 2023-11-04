@@ -16,24 +16,34 @@ do                                        \
 } while (0)                               \
 
 
-
 int main(int argc, char** argv)
 {
-    const char* inputFileName = NULL;
-    if (!parseArguments(argc, argv, &inputFileName))
+    ConsoleArgs consoleArgs = {};
+    if (!parseArguments(argc, argv, &consoleArgs))
         return SPU_PARSE_ARGS_ERROR;
 
     SPU spu = {};
     SPU_Error err = SPU_NO_ERROR;
 
-    spuInit(&spu, inputFileName);
+    err = spuInit(&spu, &consoleArgs);
+    if (err != SPU_NO_ERROR)
+    {
+        fprintf(stdout, "ERROR OCCURED\n");
+        return err;
+    }
 
     err = execProgram(&spu); 
     if (err != SPU_NO_ERROR)
     {
         spuDtor(&spu);
-        fprintf(stderr, "ERROR OCCURRED\n");
+        fprintf(stdout, "ERROR OCCURRED\n");
         return err;
     }
-    spuDtor(&spu);
+
+    err = spuDtor(&spu);
+    if (err != SPU_NO_ERROR)
+    {
+        fprintf(stdout, "ERROR OCCURRED\n");
+        return err;
+    }
 }

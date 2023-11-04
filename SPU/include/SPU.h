@@ -3,11 +3,14 @@
 
 #include <stdio.h>
 #include <malloc.h>
-#include "../../CPU_common.h"
+#include <inttypes.h>
 #include "stack.h"
 #include "colors.h"
+#include "SPU_dump.h"
 #include "SPU_graph.h"
+#include "SPU_parseArgs.h"
 #include "SPU_fileHandling.h"
+#include "../../CPU_common.h"
 
 struct SPU
 {
@@ -17,6 +20,8 @@ struct SPU
     uint8_t* curCommand;
     uint8_t* commands;
     char* vramBuffer;
+    SpuDumpInfo dump;
+    bool isDump;
 };
 
 enum SPU_Error
@@ -34,7 +39,7 @@ enum SPU_Error
 
 SPU_Error execProgram(SPU* spu);
 
-SPU_Error spuInit(SPU* spu, const char* inputFileName);
+SPU_Error spuInit(SPU* spu, const ConsoleArgs* args);
 
 SPU_Error spuDtor(SPU* spu);
 

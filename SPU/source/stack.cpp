@@ -333,10 +333,9 @@ StackError stackDtor(Stack* stk)
     CHECK_CONDITION_RETURN_ERROR(stk->data == NULL,   STACK_DATA_NULL_ERROR);
 
     CHECK_STACK_HASH_RETURN_ERROR(stk);
-    
+
     CHECK_DUMP_AND_RETURN_ERROR(stk);
 
-    freeData(stk);
 
     #ifndef RELEASE
 
@@ -346,6 +345,8 @@ StackError stackDtor(Stack* stk)
     }
 
     #endif
+
+    freeData(stk);
 
     if (stkerr != stderr)
     {

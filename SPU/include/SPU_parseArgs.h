@@ -4,7 +4,16 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
-bool parseArguments(int argc, char** argv, const char** inFile);
+struct ConsoleArgs
+{
+    const char* inFile;
+    const char* dumpFile;
+    bool genDump;
+    bool genExtDump;
+};
+
+bool parseArguments(int argc, char** argv, ConsoleArgs* args);
 
 #endif

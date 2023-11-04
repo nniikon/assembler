@@ -56,6 +56,6 @@ SPU_fileError createBuffer(uint8_t** buffer, const char* inputFileName)
     fileErr = putBinFileToBuffer(buffer, bufferSize, inputFileName);
     if (fileErr != SPU_FILE_NO_ERROR)
         return fileErr;
-        
+
     return SPU_FILE_NO_ERROR;
 }

@@ -1,7 +1,7 @@
 #include "../include/SPU_graph.h"
 
 
-void renderRam_console(const int* ram, char* vramBuffer, const size_t size)
+void renderRam(const int* ram, char* vramBuffer, const size_t size)
 {
     //system("clear");
     assert(SPU_VRAM_HEIGHT * SPU_VRAM_WIDTH + SPU_VRAM_SHIFT <= size);
@@ -21,12 +21,6 @@ void renderRam_console(const int* ram, char* vramBuffer, const size_t size)
             {
             case 0:
                 vramBuffer[(SPU_VRAM_WIDTH + 1)* y + x] = '.';
-                break;
-            case 100:
-                vramBuffer[(SPU_VRAM_WIDTH + 1)* y + x] = '*';
-                break;
-            case 200:
-                vramBuffer[(SPU_VRAM_WIDTH + 1)* y + x] = '%';
                 break;
             default:
                 vramBuffer[(SPU_VRAM_WIDTH + 1)* y + x] = '&';
