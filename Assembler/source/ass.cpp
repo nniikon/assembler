@@ -1,4 +1,4 @@
-#include "../include/assembler.h"
+#include "../include/ass.h"
 
 #define DUMP_DEBUG   
 #include "../../lib/dump.h"
@@ -31,11 +31,11 @@ const char* ARG_DELIMS = "\t +]";
 /**
  * @brief Puts byte code into the given file.
 */
-static AssemblerError putBufferToFile(const Assembler* ass, FILE* outputFile);
+static AssemblerError putBufferToFile(const Assembler* ass);
 
 static CommandError checkCommandCorrectness(AssCommand* command, Assembler* ass, size_t pos);
 
-AssemblerError textToAssembly(Assembler* ass, FILE* outputFile, const bool isLastAssembly);
+AssemblerError textToAssembly(Assembler* ass, const bool isLastAssembly);
 
 static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, AssCommand* cmd);
 
@@ -52,9 +52,9 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
 static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos);
 
 
-static AssemblerError putBufferToFile(const Assembler* ass, FILE* outputFile)
+static AssemblerError putBufferToFile(const Assembler* ass)
 {
-    size_t refSize = fwrite(ass->outputBuffer, sizeof(char), ass->outputBufferPos, outputFile);
+    size_t refSize = fwrite(ass->outputBuffer, sizeof(char), ass->outputBufferPos, ass->outputFile);
     if (refSize != ass->outputBufferPos)
         return ASSEMBLER_FWRITE_ERROR;
     return ASSEMBLER_NO_ERROR;
@@ -116,7 +116,7 @@ static CommandError setLabelName(const char* str, Assembler* ass)
         return CMD_HIT_MAX_LABLES;
     }
 
-    if (chrAppearsMoreTimes(str, ':', 1))
+    if (nChrInLine(str, ':') > 1)
         return CMD_TOO_MANY_COLONS;
 
     size_t size = 0;
@@ -320,18 +320,20 @@ static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos)
 
 
 #define CHECK_PUSH_CMD_ERR(err)\
-    if ((err) != CMD_NO_ERROR && (isLastAssembly))\
+    do\
     {\
-        AssError tempError = {err, line, ass->inputFileName};\
-        pushAssErrArray(&(ass->errorArray), &tempError);\
-        continue;\
-    }
+        if ((err) != CMD_NO_ERROR && (isLastAssembly))\
+        {\
+            AssError tempError = {err, line, ass->inputFileName};\
+            pushAssErrArray(&(ass->errorArray), &tempError);\
+            continue;\
+        }\
+    } while(0)
 
 
-AssemblerError textToAssembly(Assembler* ass, FILE* outputFile, const bool isLastAssembly)
+AssemblerError textToAssembly(Assembler* ass, const bool isLastAssembly)
 {
     assert(ass);
-    assert(outputFile);
     DUMP_PRINT("TEXT TO ASSEMBLY STARTED\n");
 
     for (size_t line = 0; line < ass->inputText.nLines; line++)
@@ -353,9 +355,8 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile, const bool isLas
 
         // Check the correctness of brackets.
         if (nChrInLine(str, '[') != nChrInLine(str, ']'))
-        {
             CHECK_PUSH_CMD_ERR(CMD_MISMATCHED_BRACKET);
-        }
+
         IF_DUMP_DEBUG(fputc('\n', stderr));
         DUMP_PRINT("Analysing line num: %ld\n", line);
         DUMP_PRINT("<%s>\n", str);
@@ -368,6 +369,7 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile, const bool isLas
             .hasMem = false,
 
             .cmdID = 0,
+            .nBrackets = 0,
 
             .line = line,
 
@@ -408,52 +410,74 @@ AssemblerError textToAssembly(Assembler* ass, FILE* outputFile, const bool isLas
 }
 
 
-void assembly(Assembler* ass, FILE* outputFile)
+AssemblerError assembly(Assembler* ass)
 {
     assert(ass);
-    assert(outputFile);
+    assert(ass->outputFile);
     for (int i = 0; i < NUMBER_OF_COMPILATIONS; i++)
     {
         DUMP_PRINT("File name: %s\n", ass->inputFileName);
         ass->errorArray.emptyIndex = 0;
         ass->labelArr.emptyLabel = 0;
         ass->outputBufferPos = 0;
+
+        AssemblerError err = ASSEMBLER_NO_ERROR;
         if (i + 1 == NUMBER_OF_COMPILATIONS)
-            textToAssembly(ass, outputFile, true);
+        {
+            err = textToAssembly(ass, true);
+        }
         else
-            textToAssembly(ass, outputFile, false);
+        {
+            err = textToAssembly(ass, false);
+        }
+
+        if (err != ASSEMBLER_NO_ERROR)
+            return err;
     }
-    putBufferToFile(ass, outputFile);
-    return;
+    putBufferToFile(ass);
+    return ASSEMBLER_NO_ERROR;
 }
 
 
-AssemblerError assInit(Assembler* ass, const char* inputFile)
+AssemblerError assInit(Assembler* ass, const char* inputFileName, const char* outputFileName)
 {
     assert(ass);
-    assert(inputFile);
+    assert(inputFileName);
 
     DUMP_PRINT("assInit started\n");
 
-    // Initialize input Text from the file.  
-    ParseError error = textInit(inputFile, &ass->inputText);
+    // Initialize input Text from the file. 
+    FileError error = textInit(inputFileName, &ass->inputText);
     if (error != PARSE_NO_ERROR)
     {
-        DUMP_PRINT("ERROR! INITIALIZATION TEXT ERROR\n");
+        fprintf(stdout, "Initializing text error\n");
         return ASSEMBLER_PARSE_ERROR;
+    }
+
+    // Open the output file.
+    ass->outputFile = fopen(outputFileName, "wb");
+    if (ass->outputFile == NULL)
+    {
+        textDtor(&ass->inputText);
+        fprintf(stdout, "failed to open %s\n", outputFileName);
+        return ASSEMBLER_OPEN_FILE_ERROR;
     }
 
     // Initialize output Buffer.
     uint8_t* temp = (uint8_t*) calloc(ass->inputText.nLines, MAX_NUMBER_LINE_CMD * sizeof(int));
     if (temp == NULL)
     {
-        DUMP_PRINT("ERROR! ERROR ALLOCATING MEMORY\n");
+        fprintf(stdout, "Allocating memory error.\n");
+
+        fclose(ass->outputFile);
+        textDtor(&ass->inputText);
+
         return ASSEMBLER_ALLOCATION_ERROR;
     }
     ass->outputBuffer = temp;
     ass->outputBufferPos = 0lu;
 
-    ass->inputFileName = inputFile;
+    ass->inputFileName = inputFileName;
 
     // Initialize LabelArr
     ass->labelArr.emptyLabel = 0;
@@ -461,23 +485,31 @@ AssemblerError assInit(Assembler* ass, const char* inputFile)
     Label* tempLabel = (Label*) calloc(MAX_NUMBER_OF_LABELS, sizeof(Label));
     if (tempLabel == NULL)
     {
+        fprintf(stdout, "Allocating memory error.\n");
+
         free(temp);
-        DUMP_PRINT("ERROR! ERROR ALLOCATING MEMORY\n");
+        fclose(ass->outputFile);
+        textDtor(&ass->inputText);
+
         return ASSEMBLER_ALLOCATION_ERROR;
     }
     ass->labelArr.labels = tempLabel;
-
 
     // Initialize error array.
     AssemblerError err = ASSEMBLER_NO_ERROR;
     err = AssErrorInit(&(ass->errorArray));
     if (err != ASSEMBLER_NO_ERROR)
     {
+        fprintf(stdout, "Assembler errors initialization error.\n");
+
+        free(tempLabel);
+        free(temp);
+        fclose(ass->outputFile);
+        textDtor(&ass->inputText);
         return err;
     }
 
     DUMP_PRINT("assInit success\n");
-
 
     return ASSEMBLER_NO_ERROR;
 }
@@ -488,6 +520,7 @@ AssemblerError assDtor(Assembler* ass)
     assert(ass);
     assert(ass->outputBuffer);
 
+    fclose(ass->outputFile);
     textDtor(&ass->inputText);
     free(ass->outputBuffer);
     free(ass->labelArr.labels);
