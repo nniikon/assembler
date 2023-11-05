@@ -57,7 +57,6 @@ const int REG_POISON = INT32_MIN;
 
 static int* getArgsAdress(SPU* spu)
 {
-    
     /*  curCommand
            V
        |AB|00|11 11 11 11|
@@ -74,7 +73,7 @@ static int* getArgsAdress(SPU* spu)
     if (cmd & CMD_REGISTER_BIT)
     {
         int regID = ((uint8_t*)spu->curCommand)[0];
-        res   = &(spu->reg[regID]);
+        res = &(spu->reg[regID]);
 
         int regValue = *res;
         resSum += regValue;
@@ -111,7 +110,7 @@ static int* getArgsAdress(SPU* spu)
     {
         int mem = resSum / FLOATING_POINT_COEFFICIENT;
         res = &(spu->ram[mem]);
-    
+
         if (spu->isDump)
         {
             spu->dump.cmdInfo.hasMem = true;
@@ -163,9 +162,9 @@ static void setDump(SPU* spu, const char* name)
     spu->dump.cmdInfo = {};
     spu->dump.isResValue = false;
     spu->dump.cmdName = name;
-    spu->dump.shift = 1ul; // since command name is guaranteed. 
-    spu->dump.adress = (size_t)spu->curCommand - (size_t)spu->commands;\
-    spu->dump.startAdressPtr = spu->curCommand;\
+    spu->dump.shift = 1ul; // since opcode is guaranteed.
+    spu->dump.adress = (size_t)spu->curCommand - (size_t)spu->commands;
+    spu->dump.startAdressPtr = spu->curCommand;
 }
 
 
@@ -214,7 +213,7 @@ SPU_Error spuInit(SPU* spu, const ConsoleArgs* args)
     assert(args);
     assert(args->inFile);
 
-    SPU_fileError fileErr = createBuffer(&(spu->commands), args->inFile);
+    SPU_fileError fileErr = createBinaryBuffer(&(spu->commands), args->inFile);
     if (fileErr != SPU_FILE_NO_ERROR)
     {
         fprintf(stderr, "spuInit: file handling error\n");
@@ -310,7 +309,6 @@ SPU_Error spuDtor(SPU* spu)
     // Poison the SPU.
     spu->curCommand = NULL;
     spu->commands   = NULL;
-
 
     DUMP_PRINT("SPU destruction ended successfully:\n");
     return SPU_NO_ERROR;

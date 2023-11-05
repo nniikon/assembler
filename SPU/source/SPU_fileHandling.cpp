@@ -1,7 +1,7 @@
 #include "../include/SPU_fileHandling.h"
 
 
-SPU_fileError putBinFileToBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME)
+static SPU_fileError putBinFileToBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME)
 {
     uint8_t* tempBuf = (uint8_t*)calloc(size, 1);
     if (tempBuf == NULL)
@@ -32,7 +32,7 @@ SPU_fileError putBinFileToBuffer(uint8_t** buffer, const size_t size, const char
 }
 
 
-SPU_fileError getFileSize(const char* fileName, size_t* size)
+static SPU_fileError getFileSize(const char* fileName, size_t* size)
 {
     struct stat bf = {};
     int error = stat(fileName, &bf);
@@ -46,7 +46,7 @@ SPU_fileError getFileSize(const char* fileName, size_t* size)
 }
 
 
-SPU_fileError createBuffer(uint8_t** buffer, const char* inputFileName)
+SPU_fileError createBinaryBuffer(uint8_t** buffer, const char* inputFileName)
 {
     size_t bufferSize = 0;
     SPU_fileError fileErr = getFileSize(inputFileName, &bufferSize);

@@ -1,12 +1,13 @@
 #include "../include/SPU_parseArgs.h"
 
-#define DUMP_DEBUG
+//#define DUMP_DEBUG
 #include "../../lib/dump.h"
 
 const char OPT_INPUT[] = "-i";
 const char OPT_DUMP[] = "-d";
 const char OPT_EXT_DUMP[] = "-da";
 const char OPT_HELP[] = "-h";
+
 
 static void help()
 {
@@ -16,6 +17,7 @@ static void help()
     printf("%s, %s  <dump file>       generate dump file: %s = simple dump, %s = extended dump\n",
             OPT_DUMP, OPT_EXT_DUMP, OPT_DUMP, OPT_EXT_DUMP);
 }
+
 
 bool parseArguments(int argc, char** argv, ConsoleArgs* args)
 {

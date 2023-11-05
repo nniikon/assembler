@@ -9,6 +9,7 @@
     {\
         fprintf(stderr, "file: %s line: %d\t\t", __FILE__, __LINE__);\
         fprintf(stderr, __VA_ARGS__);\
+        fprintf(stderr, RESET);\
     } while (0)
 
     #define DUMP_PRINT_CYAN(...)\
@@ -16,7 +17,6 @@
     {\
         fprintf(stderr, CYAN);\
         DUMP_PRINT(__VA_ARGS__);\
-        fprintf(stderr, RESET);\
     } while (0)
 
     #define PRINT_GREEN(...)\
@@ -24,7 +24,7 @@
     {\
         fprintf(stderr, GREEN __VA_ARGS__);\
         fprintf(stderr, RESET);\
-    } while (0);
+    } while (0)
 
     #define IF_DUMP_DEBUG(...) __VA_ARGS__;
 #else

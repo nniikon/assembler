@@ -1,6 +1,6 @@
-#include "../../lib/parse.h"
-#include "../include/assembler.h"
-#include "../include/stringOperations.h"
+#include "../include/ass_parseFile.h"
+#include "../include/ass.h"
+#include "../include/ass_stringOperations.h"
 #include "../include/ass_parseArgs.h"
 
 
@@ -10,7 +10,6 @@ int main(int argc, char** argv)
 
     AssemblerError assErr = ASSEMBLER_NO_ERROR;
 
-
     const char* inputFileName  = NULL;
     const char* outputFileName = NULL;
 
@@ -19,31 +18,27 @@ int main(int argc, char** argv)
         return ASSEMBLER_WRONG_ARGUMENTS;
     }
 
-    // Open the output file.
-    FILE* outputFile = fopen(outputFileName, "wb");
-    if (outputFile == NULL)
-    {
-        fprintf(stderr, "failed to open %s\n", outputFileName);
-        return ASSEMBLER_OPEN_FILE_ERROR;
-    }
-
-    assErr = assInit(&ass, inputFileName);
+    assErr = assInit(&ass, inputFileName, outputFileName);
     if (assErr != ASSEMBLER_NO_ERROR)
     {
-        fclose(outputFile);
-        fprintf(stderr, "error initializing assembler.\n");
+        fprintf(stdout, "error initializing assembler.\n");
         return assErr;
     }
 
-    assembly(&ass, outputFile);
-    fclose(outputFile);
+    assErr = assembly(&ass);
+    if (assErr != ASSEMBLER_NO_ERROR)
+    {
+        assDtor(&ass);
+        fprintf(stdout, "assembly error.\n");
+        return assErr;
+    }
 
     printAssError(&ass.errorArray, ass.inputText.line);
 
     assDtor(&ass);
     if (assErr != ASSEMBLER_NO_ERROR)
     {
-        fprintf(stderr, "error destructing my ass.\n");
+        fprintf(stdout, "error destructing my ass.\n");
         return assErr;
     }
 }

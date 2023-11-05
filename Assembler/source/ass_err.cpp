@@ -7,7 +7,7 @@ static const char* errorStr[] =
 {
     // Generate error string names.
     #define DEF_ERR(name, errStr) errStr,
-    #include "../include/errors.h"
+    #include "../include/ass_errors_codegen.h"
     #undef DEF_ERR
 };
 

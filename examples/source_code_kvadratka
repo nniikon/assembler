@@ -2,6 +2,7 @@ call main
 HLT
 
 main:
+    meow 5
     call setCoefficients
     call quadraticSolver
     call printAnswers

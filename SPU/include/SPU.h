@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <inttypes.h>
-#include "stack.h"
-#include "colors.h"
+#include "SPU_stack.h"
+#include "../../lib/colors.h"
 #include "SPU_dump.h"
 #include "SPU_graph.h"
 #include "SPU_parseArgs.h"

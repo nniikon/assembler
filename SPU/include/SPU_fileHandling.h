@@ -18,12 +18,6 @@ enum SPU_fileError
     SPU_FILE_FREAD_ERROR,
 };
 
-
-SPU_fileError putBinFileToBuffer(uint8_t** buffer, const size_t size, const char* FILE_NAME);
-
-SPU_fileError getFileSize(const char* fileName, size_t* size);
-
-SPU_fileError createBuffer(uint8_t** buffer, const char* FILE_NAME);
-
+SPU_fileError createBinaryBuffer(uint8_t** buffer, const char* FILE_NAME);
 
 #endif

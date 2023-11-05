@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../include/SPU.h"
-#include "../include/stack.h"
+#include "../include/SPU_stack.h"
 #include "../include/SPU_parseArgs.h"
 
 #define CHECK_PARSE_ERROR(error)          \

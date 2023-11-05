@@ -5,10 +5,9 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <inttypes.h>
-#include "stack.h"
+#include "SPU_stack.h"
 #include "../../CPU_common.h"
 #include "SPU_config.h"
-
 
 struct CmdInfo
 {
@@ -35,6 +34,5 @@ struct SpuDumpInfo
 };
 
 void dumpSpu(SpuDumpInfo* dump, int* regs, int* ram, Stack* stk);
-
 
 #endif

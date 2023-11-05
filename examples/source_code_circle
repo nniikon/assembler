@@ -17,7 +17,7 @@ push 2; X multiplier
 pop [1256]
 
 call main
-
+HLT
 
 main:
     call printCircle
@@ -35,7 +35,8 @@ main:
     pop [1252]
 
     call printCircle
-    HLT
+ret
+
 
 printCircle:
     push 0

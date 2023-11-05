@@ -4,16 +4,15 @@
 #include <stdio.h>
 #include <assert.h>
 #include "ass_config.h"
-#include "../../lib/parse.h"
+#include "ass_parseFile.h"
 
 enum CommandError 
 {
     // Generate enum.
     #define DEF_ERR(name, errStr) CMD_ ## name,
-    #include "../include/errors.h"
+    #include "../include/ass_errors_codegen.h"
     #undef DEF_ERR
 };
-
 
 enum AssemblerError
 {
@@ -26,7 +25,6 @@ enum AssemblerError
     ASSEMBLER_WRONG_ARGUMENTS,
 };
 
-
 struct AssError
 {
     CommandError err;
@@ -34,14 +32,12 @@ struct AssError
     const char* fileName;
 };
 
-
 struct AssErrorArray
 {
     AssError* err;
     size_t emptyIndex;
     size_t capacity;
 };
-
 
 AssemblerError pushAssErrArray(AssErrorArray* errArr, AssError* error);
 

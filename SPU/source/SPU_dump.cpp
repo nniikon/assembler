@@ -3,6 +3,7 @@
 #define print(...) fprintf(dump->file, __VA_ARGS__)
 #define put(...) putc(__VA_ARGS__, dump->file)
 
+
 static void dumpRegs(SpuDumpInfo* dump, int* regs)
 {
     for (size_t i = 0; i < AMOUNT_OF_REGISTERS; i++)
@@ -10,6 +11,7 @@ static void dumpRegs(SpuDumpInfo* dump, int* regs)
         print("%d: %s: <%d>\n", REGS[i].id, REGS[i].name, regs[i]);
     }
 }
+
 
 static void dumpRam(SpuDumpInfo* dump, int* ram)
 {
@@ -41,6 +43,7 @@ static void dumpRam(SpuDumpInfo* dump, int* ram)
     put('\n');
 
 }
+
 
 static void dumpStack(SpuDumpInfo* dump, Stack* stack)
 {
@@ -111,6 +114,9 @@ void dumpSpu(SpuDumpInfo* dump, int* regs, int* ram, Stack* stk)
         dumpRam(dump, ram);
         dumpStack(dump, stk);
     }
-    put('\n');
+
+    if (dump->isExtended)
+        put('\n');
+
     fflush(dump->file);
 }
