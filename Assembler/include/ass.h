@@ -2,10 +2,10 @@
 #define ASSEMBLER_H
 
 #include <assert.h>
-#include "../../lib/parse.h"
+#include "ass_parseFile.h"
 #include "../../CPU_common.h"
 #include "ass_config.h"
-#include "stringOperations.h"
+#include "ass_stringOperations.h"
 #include "ass_err.h"
 
 struct Label
@@ -15,7 +15,6 @@ struct Label
     int adress;
 };
 
-
 struct LabelArr
 {
     Label* labels;
@@ -23,9 +22,10 @@ struct LabelArr
     size_t nLabels;
 };
 
-
 struct Assembler
 {
+    FILE* outputFile;
+
     Text inputText;
     const char* inputFileName;
 
@@ -37,11 +37,10 @@ struct Assembler
     AssErrorArray errorArray;
 };
 
+AssemblerError assembly(Assembler* ass);
 
-void assembly(Assembler* ass, FILE* outputFile);
+AssemblerError assInit(Assembler* ass, const char* inputFileName, const char* outputFileName);
 
-AssemblerError assInit(Assembler* ass, const char* inputFile);
-
-AssemblerError assDtor(Assembler* ass); // ASS DESTRUCTOR
+AssemblerError assDtor(Assembler* ass);
 
 #endif

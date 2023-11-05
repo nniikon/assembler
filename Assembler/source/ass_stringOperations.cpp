@@ -1,4 +1,4 @@
-#include "../include/stringOperations.h"
+#include "../include/ass_stringOperations.h"
 
 char getWordSize(size_t* size, const char* str, const char* delim)
 {
@@ -23,24 +23,6 @@ void moveToNextWord(const char** input, size_t size, const char* delim)
 
     if (*input[0] == 0)
         (*input) = NULL;
-}
-
-
-bool chrAppearsMoreTimes(const char* str, const char chr, size_t amount)
-{
-    size_t count = 0;
-
-    str = strchr(str, chr);
-    while (str != NULL) 
-    {
-        str++;
-        count++;
-        if (count > amount)
-            return true;
-
-        str = strchr(str, chr);
-    }
-    return false;
 }
 
 

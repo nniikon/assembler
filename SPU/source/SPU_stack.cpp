@@ -1,4 +1,4 @@
-#include "../include/stack.h"
+#include "../include/SPU_stack.h"
 
 
 static FILE* stkerr = stderr;

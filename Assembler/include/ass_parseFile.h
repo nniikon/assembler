@@ -11,7 +11,7 @@
 #include <limits.h>
 
 
-enum ParseError
+enum FileError
 {
     PARSE_NO_ERROR,
     PARSE_FILE_OPEN_ERROR,
@@ -55,11 +55,11 @@ void printTextToFile(Line* txt, FILE* file);
  * @param FILE_NAME[in]  A name of the file.
  * @param buffer[in,out] A pointer to a buffer of the data from the file.
  * 
- * @return The `ParseError` code.
+ * @return The `FileError` code.
  *
  * @note Don't forget to `free()` the given pointer.
  */
-ParseError FileToBuffer(char** buffer, const size_t size, const char* FILE_NAME);
+FileError FileToBuffer(char** buffer, const size_t size, const char* FILE_NAME);
 
 /**
  * @brief Gets a file size by it's name.
@@ -67,9 +67,9 @@ ParseError FileToBuffer(char** buffer, const size_t size, const char* FILE_NAME)
  * @param[in]  fileName The file name.
  * @param[out] size     Pointer to the size of the file to be set.
  * 
- * @return The `ParseError` code.
+ * @return The `FileError` code.
  */
-ParseError getFileSize(const char* fileName, size_t* size);
+FileError getFileSize(const char* fileName, size_t* size);
 
 /**
  * @brief Removes all consecutive occurrences of the given character in the string.
@@ -105,11 +105,11 @@ size_t nCharactersInString(const char input[], const char chr);
  * @param[in]  delimiter The symbol that indicates a new Line.
  * @param[out] dstLine   A pointer to the array on `Line`, ending with `NULL`.
  * 
- * @return The `ParseError` code.
+ * @return The `FileError` code.
  *
  * @note Don't forget to `free()` the given pointer.
 */
-ParseError parseBufferToLines(Line** dstLine, char* buffer, size_t* nLines, const char delimiter);
+FileError parseBufferToLines(Line** dstLine, char* buffer, size_t* nLines, const char delimiter);
 
 /**
  * Takes data from a file and puts it into an allocated buffer.
@@ -119,14 +119,14 @@ ParseError parseBufferToLines(Line** dstLine, char* buffer, size_t* nLines, cons
  * @param[in]  fileName  A name of the fuke
  * @param[out] dstBuffer A pointer to the buffer.
  * 
- * @return The `ParseError` code.
+ * @return The `FileError` code.
  *
  * @note Don't forget to `free()` the given pointer.
 */
-ParseError fileToNormilizedBuffer(const char* fileName, char** dstBuffer);
+FileError fileToNormilizedBuffer(const char* fileName, char** dstBuffer);
 
 
-ParseError textInit(const char* fileName, Text* txt);
+FileError textInit(const char* fileName, Text* txt);
 
 
 void textDtor(Text* txt);
