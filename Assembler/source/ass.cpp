@@ -4,17 +4,15 @@
 #include "../../lib/dump.h"
 
 
-
 struct AssCommand
 {
-    bool hasReg;
-    bool hasNum;
-    bool hasLabel;
-    bool hasMem;
+    size_t nRegs;
+    size_t nNums;
+    size_t nLabels;
+    size_t nMems;
 
     size_t cmdID;
 
-    size_t nBrackets;
     size_t line;
 
     CommandError error;
@@ -229,17 +227,37 @@ static bool tryPuttingNumberToBuffer(const char** str, const size_t size, Assemb
 }
 
 
+static CommandError checkNumberOfArguments(AssCommand* command)
+{
+    DUMP_PRINT("nMems   = <%zu>\n", command->nMems);
+    DUMP_PRINT("nLabels = <%zu>\n", command->nLabels);
+    DUMP_PRINT("nNums   = <%zu>\n", command->nNums);
+    DUMP_PRINT("nRegs   = <%zu>\n", command->nRegs);
+
+    if (command->nMems > 1)                    return CMD_TOO_MANY_BRACKETS;
+    if (command->nLabels > 1)                  return CMD_TOO_MANY_LABELS;
+    if (command->nNums > 1)                    return CMD_TOO_MANY_NUMBERS;
+    if (command->nRegs > 1)                    return CMD_TOO_MANY_REGISTERS;
+    if (command->nLabels + command->nNums > 1) return CMD_TOO_MANY_ARGUMENTS;
+
+    return CMD_NO_ERROR;
+}
+
+
 static CommandError setArgs(const char** str, Assembler* ass, AssCommand* command)
 {
     assert(str);
     assert(ass);
     assert(command);
 
+    DUMP_PRINT("setArgs started with <%s>\n", *str);
+
+    CommandError err = checkNumberOfArguments(command);
+    if (err != CMD_NO_ERROR)
+        return err;
+
     // If the recursion is over.
     if (*str == NULL) return CMD_NO_ERROR;
-
-
-    DUMP_PRINT("setArgs started with <%s>\n", *str);
 
     size_t size = 0;
     moveToNextWord(str, 0, ARG_DELIMS);
@@ -250,13 +268,13 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
     {
         if (tryPuttingRegToBuffer(str, size, ass))
         {
-            command->hasReg = true;
+            command->nRegs++;
             moveToNextArgument(str, size, del);
             return setArgs(str, ass, command);
         }
         else if (tryPuttingLabelToBuffer(str, size, ass))
         {
-            command->hasLabel = true;
+            command->nLabels++;
             moveToNextArgument(str, size, del);
             return setArgs(str, ass, command);
         }
@@ -267,16 +285,15 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
     }
     else if ((*str)[0] == '[')
     {
-        command->hasMem = true;
+        command->nMems++;
         (*str)++;
-        command->nBrackets++;
         return setArgs(str, ass, command);
     }
     else if (isNumber((*str)[0]))
     {
         if (tryPuttingNumberToBuffer(str, size, ass)) 
         {
-            command->hasNum = true;
+            command->nNums++;
             moveToNextArgument(str, size, del);
             return setArgs(str, ass, command);
         }
@@ -303,32 +320,43 @@ static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos)
 
     DUMP_PRINT("Started adjusting command code\n");
 
-    if (command->hasLabel) ass->outputBuffer[pos] |= CMD_IMMEDIATE_BIT;
-    if (command->hasNum  ) ass->outputBuffer[pos] |= CMD_IMMEDIATE_BIT;
-    if (command->hasMem  ) ass->outputBuffer[pos] |= CMD_MEMORY_BIT;
-    if (command->hasReg  ) ass->outputBuffer[pos] |= CMD_REGISTER_BIT;
-
-    if (command->hasLabel) DUMP_PRINT("add imm(label) bit\n");
-    if (command->hasNum  ) DUMP_PRINT("add imm(number) bit\n");
-    if (command->hasMem  ) DUMP_PRINT("add ram bit\n");
-    if (command->hasReg  ) DUMP_PRINT("add reg bit\n");
+    if (command->nLabels == 1)
+    {
+        ass->outputBuffer[pos] |= CMD_IMMEDIATE_BIT;
+        DUMP_PRINT("add imm(label) bit\n");
+    }
+    if (command->nNums == 1)
+    {
+        ass->outputBuffer[pos] |= CMD_IMMEDIATE_BIT;
+        DUMP_PRINT("add imm(number) bit\n");
+    }
+    if (command->nMems == 1)
+    {
+        ass->outputBuffer[pos] |= CMD_MEMORY_BIT;
+        DUMP_PRINT("add ram bit\n");
+    }
+    if (command->nRegs == 1)
+    {
+        ass->outputBuffer[pos] |= CMD_REGISTER_BIT;
+        DUMP_PRINT("add reg bit\n");
+    }
 
     DUMP_PRINT("Command code: %d\n", ass->outputBuffer[pos]);
-
     DUMP_PRINT("Adjustment success\n");
 }
 
 
 #define CHECK_PUSH_CMD_ERR(err)\
-    do\
+    if ((err) != CMD_NO_ERROR)\
     {\
-        if ((err) != CMD_NO_ERROR && (isLastAssembly))\
+        if (isLastAssembly)\
         {\
             AssError tempError = {err, line, ass->inputFileName};\
             pushAssErrArray(&(ass->errorArray), &tempError);\
-            continue;\
         }\
-    } while(0)
+        continue;\
+    }\
+
 
 
 AssemblerError textToAssembly(Assembler* ass, const bool isLastAssembly)
@@ -363,13 +391,12 @@ AssemblerError textToAssembly(Assembler* ass, const bool isLastAssembly)
 
         AssCommand command = 
         {
-            .hasReg = false,
-            .hasNum = false,
-            .hasLabel = false,
-            .hasMem = false,
+            .nRegs = 0,
+            .nNums = 0,
+            .nLabels = 0,
+            .nMems = 0,
 
             .cmdID = 0,
-            .nBrackets = 0,
 
             .line = line,
 

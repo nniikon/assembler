@@ -1,5 +1,6 @@
 #include "../include/ass_stringOperations.h"
 
+
 char getWordSize(size_t* size, const char* str, const char* delim)
 {
     assert(size);

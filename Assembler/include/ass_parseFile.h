@@ -10,7 +10,6 @@
 #include <ctype.h>
 #include <limits.h>
 
-
 enum FileError
 {
     PARSE_NO_ERROR,
@@ -21,7 +20,6 @@ enum FileError
     PARSE_UNEXPECTED_ERROR,
     PARSE_FREAD_ERROR,
 };
-
 
 /// @brief A structure for storing a `char*` string along with it's length.
 struct Line
@@ -36,7 +34,6 @@ struct Text
     char* buffer;
     size_t nLines;
 };
-
 
 /**
  * @brief Prints a `Line*` Text into the file.
@@ -125,11 +122,8 @@ FileError parseBufferToLines(Line** dstLine, char* buffer, size_t* nLines, const
 */
 FileError fileToNormilizedBuffer(const char* fileName, char** dstBuffer);
 
-
 FileError textInit(const char* fileName, Text* txt);
 
-
 void textDtor(Text* txt);
-
 
 #endif

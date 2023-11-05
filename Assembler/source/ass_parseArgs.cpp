@@ -4,6 +4,7 @@ const char OPT_INPUT[] = "-i";
 const char OPT_OUTPUT[] = "-o";
 const char OPT_HELP[] = "-h";
 
+
 static void help()
 {
     printf("%s\t[output file]\n", OPT_OUTPUT);
@@ -11,12 +12,14 @@ static void help()
     printf("%s\tprint this message \n", OPT_HELP);
 }
 
+
 static void printError(char** argv)
 {
     const char invalidOptionErrorText[] = 
         "Invalid options or missing argument, use: %s %s <source_file> [%s] <output_file>\n";
     fprintf(stderr, invalidOptionErrorText, argv[0], OPT_INPUT, OPT_OUTPUT);
 }
+
 
 bool parseArguments(int argc, char** argv, const char** inFile, const char** outFile)
 {
