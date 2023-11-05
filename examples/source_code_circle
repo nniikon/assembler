@@ -1,12 +1,9 @@
-push 20; X center
-pop [1251]
-
-push 12; Y center
-pop [1252]
-
-push 10; radius
-pop [1253]
-
+;------------------------------------------------------------
+; CONSTANTS
+;
+; RAM usage: 
+;   - [1254 - 1256]
+;------------------------------------------------------------
 push 25; VRAM Y capacity
 pop [1254]
 
@@ -15,30 +12,89 @@ pop [1255]
 
 push 2; X multiplier
 pop [1256]
+;------------------------------------------------------------
 
 call main
 HLT
 
 main:
+    push 15
+    push 15
+    push 10
+    call setCircleParams
     call printCircle
-
-    push 30
-    pop [1251]
-    push 20
-    pop [1252]
-
-    call printCircle
+    push [1260]
+    out
 
     push 40
-    pop [1251]
-    push 8
-    pop [1252]
-
+    push 5
+    push 10
+    call setCircleParams
     call printCircle
+    push [1260]
+    out
+
+    push 40
+    push 20
+    push 5
+    call setCircleParams
+    call printCircle
+    push [1260]
+    out
 ret
 
+;------------------------------------------------------------
+; Function: setCircleParams
+;
+; Description: This function sets X, Y coordinates and a radius parameters for the 'printCircle' function.
+;
+; Inputs:
+;   - Stack:
+;       - Param1: radius
+;       - Param2: Y coordinate
+;       - Param3: X coordinate
+;
+; Clobbers:
+;   - rdx, [1251], [1252], [1253]
+;
+; Returns: 
+;   - X -> [1251]
+;   - Y -> [1252]
+;   - R -> [1253]
+;------------------------------------------------------------
+setCircleParams:
+    pop rdx
+    pop [1253]
+    pop [1252]
+    pop [1251]
+    push rdx
+ret
 
+;------------------------------------------------------------
+; Function: printCircle
+;
+; Description: This function prints a circle by the given X, Y coordinates and a radius.
+;              It is recommended to use this function with setCircleParams.
+;
+; Inputs:
+;   - [1251]: X coordinate
+;   - [1252]: Y coordinate
+;   - [1253]: radius
+;   - [1254]: VRAM Y capacity
+;   - [1255]: VRAM X capacity
+;   - [1256]: X multiplier
+;
+; Clobbers:
+;   - rax, rbx, rcx, rdx
+;
+; Returns:
+;   - circle image -> VRAM
+;   - number of painted pixels -> [1260]
+;------------------------------------------------------------
 printCircle:
+    push 0
+    pop [1260]
+
     push 0
     pop rbx; Y
     FOR_Y:
@@ -54,6 +110,10 @@ printCircle:
             jump aboveRadius  ; distance >  radius
 
             belowRadius:
+                push [1260]
+                push 1
+                add
+                pop [1260] 
                 call paint
             aboveRadius:
 
