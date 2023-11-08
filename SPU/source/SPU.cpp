@@ -52,6 +52,20 @@ const int REG_POISON = INT32_MIN;
 #define RENDER\
     renderRam(spu->ram, spu->vramBuffer, SPU_RAM_CAPACITY)
 
+#define TO_REAL(arg) (float)(arg)
+
+#define TO_INT(arg) (int)(arg)
+
+#define PRINT_NUM(...) fprintf(stdout, GREEN "%g\n" RESET, __VA_ARGS__)
+
+#define PRINT_STR(...) fprintf(stdout, CYAN __VA_ARGS__ RESET)
+
+#define GET_REAL_NUM(var)\
+    float var = 0.0f;\
+    scanf("%g", &var)
+
+#define EXIT(err) return SPU_ ## err;
+
 //------------------------
 
 
@@ -65,12 +79,10 @@ static int* getArgsAdress(SPU* spu)
         |  +----->reg
         +-------->opcode 
     */
-    uint8_t cmd = ((uint8_t*)spu->curCommand)[-1];
-
     int* res = NULL;
     int resSum = 0;
 
-    if (cmd & CMD_REGISTER_BIT)
+    if (spu->opcode & CMD_REGISTER_BIT)
     {
         int regID = ((uint8_t*)spu->curCommand)[0];
         res = &(spu->reg[regID]);
@@ -89,7 +101,7 @@ static int* getArgsAdress(SPU* spu)
             spu->dump.shift += shift;
         }
     }
-    if (cmd & CMD_IMMEDIATE_BIT)
+    if (spu->opcode & CMD_IMMEDIATE_BIT)
     {
         res = (int*)spu->curCommand;
 
@@ -106,7 +118,7 @@ static int* getArgsAdress(SPU* spu)
             spu->dump.shift += shift;
         }
     }
-    if (cmd & CMD_MEMORY_BIT)
+    if (spu->opcode & CMD_MEMORY_BIT)
     {
         int mem = resSum / FLOATING_POINT_COEFFICIENT;
         res = &(spu->ram[mem]);
@@ -124,12 +136,10 @@ static int* getArgsAdress(SPU* spu)
 
 static int getArgsValue(SPU* spu)
 {
-    uint8_t cmd = ((uint8_t*)spu->curCommand)[-1];
-
     int res = 0;
 
     // Since 'rax + 5' doesn't have its own variable, it needs to be handled individually.
-    if ((cmd & CMD_REGISTER_BIT) && (cmd & CMD_IMMEDIATE_BIT) && !(cmd & CMD_MEMORY_BIT))
+    if ((spu->opcode & CMD_REGISTER_BIT) && (spu->opcode & CMD_IMMEDIATE_BIT) && !(spu->opcode & CMD_MEMORY_BIT))
     {
         int regID = ((uint8_t*)spu->curCommand)[0];
         int regValue = spu->reg[regID];
@@ -152,14 +162,18 @@ static int getArgsValue(SPU* spu)
         return res;
     }
 
-    spu->dump.isResValue = true;
+    if (spu->isDump)
+        spu->dump.isResValue = true;
+
     return *getArgsAdress(spu);
 }
 
 
 static void setDump(SPU* spu, const char* name)
 {
-    spu->dump.cmdInfo = {};
+    spu->dump.cmdInfo.hasImm = 0;
+    spu->dump.cmdInfo.hasReg = 0;
+    spu->dump.cmdInfo.hasMem = 0;
     spu->dump.isResValue = false;
     spu->dump.cmdName = name;
     spu->dump.shift = 1ul; // since opcode is guaranteed.
@@ -177,21 +191,22 @@ SPU_Error execProgram(SPU* spu)
         DUMP_PRINT("currentBufferID = <%u>\n", *spu->curCommand);
         DUMP_PRINT("currectAdress   = <%zu>\n", (size_t)spu->curCommand - (size_t)spu->commands);
 
-        switch (((uint8_t*)spu->curCommand)[0] & CMD_COMMAND_BITS)
+        spu->opcode = ((uint8_t*)spu->curCommand)[0];
+        switch (spu->opcode & CMD_COMMAND_BITS)
         {
-            #define DEF_CMD(name, byte_code, ...)\
-                case COMMANDS[CMD_ ## name].code & CMD_COMMAND_BITS:\
-                    if (spu->isDump)\
-                        setDump(spu, #name);\
-                    \
-                    spu->curCommand += sizeof(uint8_t);\
-                    __VA_ARGS__;\
-                    \
-                    if (spu->isDump)\
-                        dumpSpu(&(spu->dump), spu->reg, spu->ram, &spu->stack);\
+            #define DEF_CMD(name, byte_code, ...)                                       \
+                case COMMANDS[CMD_ ## name].code & CMD_COMMAND_BITS:                    \
+                    if (spu->isDump)                                                    \
+                        setDump(spu, #name);                                            \
+                                                                                        \
+                    spu->curCommand += sizeof(uint8_t);                                 \
+                    __VA_ARGS__;                                                        \
+                                                                                        \
+                    if (spu->isDump)                                                    \
+                        dumpSpu(&(spu->dump), spu->reg, spu->ram, &spu->stack);         \
                 break;
 
-            #include "../../CPU_commands_codegen.h"
+            #include "../../common/CPU_commands_codegen.h"
 
             #undef DEF_CMD
 
@@ -205,15 +220,18 @@ SPU_Error execProgram(SPU* spu)
 }
 
 
-SPU_Error spuInit(SPU* spu, const ConsoleArgs* args)
+SPU_Error spuInit(SPU* spu, SPU_InitData* data)
 {
     DUMP_PRINT("SPU initialization started:\n");
 
     assert(spu);
-    assert(args);
-    assert(args->inFile);
+    assert(data);
+    assert(data->inputFileName);
 
-    SPU_fileError fileErr = createBinaryBuffer(&(spu->commands), args->inFile);
+    if (data->inputFileName == NULL)
+        return SPU_FILE_ERROR;
+
+    SPU_fileError fileErr = createBinaryBuffer(&(spu->commands), data->inputFileName);
     if (fileErr != SPU_FILE_NO_ERROR)
     {
         fprintf(stderr, "spuInit: file handling error\n");
@@ -221,13 +239,22 @@ SPU_Error spuInit(SPU* spu, const ConsoleArgs* args)
     }
 
     // Open dump file.
-    if (args->genDump || args->genExtDump)
+    if (data->extDumpFileName != NULL || data->dumpFileName != NULL)
     {
         spu->isDump = true;
-        if (args->genExtDump)
-            spu->dump.isExtended = true;
+        const char* dumpFileName;
 
-        spu->dump.file = fopen(args->dumpFile, "w");
+        if (data->extDumpFileName != NULL)
+        {
+            spu->dump.isExtended = true;
+            dumpFileName = data->extDumpFileName;
+        }
+        else
+        {
+            dumpFileName = data->dumpFileName;
+        }
+
+        spu->dump.file = fopen(dumpFileName, "w");
         if (spu->dump.file == NULL)
         {
             fprintf(stderr, "spuInit: dump file handling error\n");

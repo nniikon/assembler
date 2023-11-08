@@ -37,7 +37,7 @@ static const elem_t POISON = __INT_MAX__;
 static const canary_t CANARY_VALUE = 0xBAADF00D;
 
 // Default minimum capacity that the stack can have.
-static const int STACK_SIZE_DEFAULT = 16;
+static const int STACK_SIZE_DEFAULT = 64;
 
 // Multiplier by which the capacity of the stack will be increased when needed.
 static const float STACK_CAPACITY_MULTIPLIER = 2.0;

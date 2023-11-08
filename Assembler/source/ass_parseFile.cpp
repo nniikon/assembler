@@ -157,7 +157,7 @@ FileError fileToNormilizedBuffer(const char* fileName, char** dstBuffer)
 
     // Replace different EOL symbols on '\n'.
     replaceCharacter          (buffer, '\r', '\n');
-    deleteRepetitiveCharacters(buffer, '\n');
+    // deleteRepetitiveCharacters(buffer, '\n');
 
     *dstBuffer = buffer;
 
@@ -167,7 +167,6 @@ FileError fileToNormilizedBuffer(const char* fileName, char** dstBuffer)
 
 FileError textInit(const char* fileName, Text* txt)
 {
-
     Line* ln = NULL;
     char* buffer = NULL; 
     FileError error = fileToNormilizedBuffer(fileName, &buffer);

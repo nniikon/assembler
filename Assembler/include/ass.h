@@ -3,7 +3,7 @@
 
 #include <assert.h>
 #include "ass_parseFile.h"
-#include "../../CPU_common.h"
+#include "../../common/CPU_common.h"
 #include "ass_config.h"
 #include "ass_stringOperations.h"
 #include "ass_err.h"

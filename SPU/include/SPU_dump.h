@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <inttypes.h>
 #include "SPU_stack.h"
-#include "../../CPU_common.h"
+#include "../../common/CPU_common.h"
 #include "SPU_config.h"
 
 struct CmdInfo

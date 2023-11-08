@@ -15,10 +15,11 @@ static void dumpRegs(SpuDumpInfo* dump, int* regs)
 
 static void dumpRam(SpuDumpInfo* dump, int* ram)
 {
+    // TODO: optimize -> put to buffer first
     const int BASE = 32;
     const int SPACE = 3;
 
-    print("%*c", 4, ' ');
+    print("%*c", SPACE + 1, ' ');
     for (int i = 0; i < BASE; i++)
     {
         print("%*x", SPACE + 1, i);
@@ -63,7 +64,10 @@ static void dumpStack(SpuDumpInfo* dump, Stack* stack)
 
 void dumpSpu(SpuDumpInfo* dump, int* regs, int* ram, Stack* stk)
 {
-    const int BYTE_BUFFER_SIZE = 19;
+    const int NUM_LENGTH = 2;
+    const int BYTE_BUFFER_SIZE = (sizeof(int) + 2 * sizeof(uint8_t)) * (NUM_LENGTH + 1) + 1;
+
+
     assert(dump);
     assert(dump->file);
     assert(dump->cmdName);
@@ -75,7 +79,7 @@ void dumpSpu(SpuDumpInfo* dump, int* regs, int* ram, Stack* stk)
     for (;dump->shift != 0; dump->shift--)
     {
         sprintf(bufIndex, "%02X ", dump->startAdressPtr[0]);
-        bufIndex += 3;
+        bufIndex += NUM_LENGTH + 1;
         dump->startAdressPtr++;
     }
 
@@ -83,10 +87,10 @@ void dumpSpu(SpuDumpInfo* dump, int* regs, int* ram, Stack* stk)
 
     print("%5s ", dump->cmdName);
 
-    if (dump->cmdInfo.hasImm)
+    if (dump->cmdInfo.hasMem)
         print("[ ");
     else
-        print("%*c", 2, ' ');
+        print("%*c", NUM_LENGTH, ' ');
 
     if (dump->cmdInfo.hasReg)
     {
@@ -100,7 +104,7 @@ void dumpSpu(SpuDumpInfo* dump, int* regs, int* ram, Stack* stk)
     if (dump->cmdInfo.hasImm)
         print("%d ", dump->cmdInfo.imm);
 
-    if (dump->cmdInfo.hasImm)
+    if (dump->cmdInfo.hasMem)
     {
         print("]");
         if (dump->isResValue)
@@ -113,10 +117,6 @@ void dumpSpu(SpuDumpInfo* dump, int* regs, int* ram, Stack* stk)
         dumpRegs(dump, regs);
         dumpRam(dump, ram);
         dumpStack(dump, stk);
-    }
-
-    if (dump->isExtended)
         put('\n');
-
-    fflush(dump->file);
+    }
 }
