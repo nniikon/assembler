@@ -1,0 +1,44 @@
+call main
+hlt
+
+main:
+	in
+	pop rax
+	call factorial
+	push rbx
+	out
+ret
+
+;------------------------------------------------------------
+;	Returns a factorial of a number.
+;
+; Inputs:
+;   - rax: a number
+;
+; Returns:
+;   - rbx  <- a factorial
+;------------------------------------------------------------
+factorial:
+	push rax
+	push 1
+	je endRecursion
+
+	push rax
+
+	push rax
+	push 1
+	sub
+	pop rax
+
+   	call factorial
+
+	push rbx
+	mul
+	pop rbx
+
+	ret
+
+	endRecursion:
+		push 1
+		pop rbx
+		ret

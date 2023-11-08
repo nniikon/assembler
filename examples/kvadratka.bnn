@@ -1,0 +1,213 @@
+call main
+HLT
+
+main:
+    meow 5
+    call setCoefficients
+    call quadraticSolver
+    call printAnswers
+ret
+
+
+printAnswers:
+    push 0
+    push rax
+    je printNoSolutions
+
+    push 1
+    push rax
+    je printOneSolution
+
+    push 2
+    push rax
+    je printTwoSolutions
+
+    jump printInfSolutions
+
+    printNoSolutions:
+        push 0
+        out
+        ret
+
+    printOneSolution:
+        push 1
+        out
+        push rbx
+        out
+        ret
+
+    printTwoSolutions:
+        push 2
+        out
+        push rbx
+        out
+        push rcx
+        out
+        ret
+
+    printInfSolutions:
+        push -1
+        out
+        ret
+
+ret
+
+
+quadraticSolver:
+    push 0
+    push rax
+    je a_zero
+
+    call calcDiscr
+
+    push rdx
+    push 0
+    ja d_pos
+
+    push rdx
+    push 0
+    jb d_neg
+
+    jump d_zero
+
+
+    a_zero:
+        call linearEquation
+        ret
+    d_pos:
+        call twoSolutions
+        ret
+    d_neg:
+        call noSolutions
+        ret
+    d_zero:
+        call oneSolution
+        ret
+ret
+
+
+setCoefficients:
+    in
+    pop rax
+
+    in
+    pop rbx
+
+    in
+    pop rcx
+ret
+
+
+calcDiscr:
+    push rbx
+    push rbx
+    mul
+    push rax
+    push rcx
+    mul
+    push 4
+    mul
+    sub
+    pop rdx
+ret
+
+linearEquation:
+    push 0
+    push rbx
+    je b_zero
+
+    jump b_nonzero
+
+    b_zero:
+        call constEquation
+        ret
+    b_nonzero:
+        call linearOneSolution
+        ret
+ret
+
+constEquation:
+    push 0
+    push rcx
+    je c_zero
+
+    jump c_nonzero
+
+    c_zero:
+        push -1
+        pop rax
+        ret
+    c_nonzero:
+        push 0
+        pop rax
+        ret
+ret
+
+
+linearOneSolution:
+    push 1
+    pop rax
+
+    push rcx
+    push rbx
+    div
+
+    push -1
+    mul
+    pop rbx
+ret
+
+
+noSolutions:
+    push 0
+    pop rax
+ret
+
+
+oneSolution:
+    push 1
+    pop rax
+
+    push rbx
+    push -1
+    mul
+    push 2
+    div
+
+    pop rbx
+ret
+
+
+twoSolutions:
+    push 2
+
+    push -1
+    push rbx
+    mul
+
+    push rdx
+    sqrt
+    add
+    push rax
+    push 2
+    mul
+    div
+
+    push -1
+    push rbx
+    mul
+
+    push -1
+    push rdx
+    sqrt
+    mul
+    add
+    push rax
+    push 2
+    mul
+    div
+
+    pop rcx
+    pop rbx
+    pop rax
+ret

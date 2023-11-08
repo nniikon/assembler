@@ -1,0 +1,201 @@
+;------------------------------------------------------------
+; CONSTANTS
+;
+; RAM usage: 
+;   - [1254 - 1256]
+;------------------------------------------------------------
+push 25; VRAM Y capacity
+pop [1254]
+
+push 50; VRAM X capacity
+pop [1255]
+
+push 2; X multiplier
+pop [1256]
+;------------------------------------------------------------
+
+call main
+HLT
+
+main:
+    push 10
+    push 10
+    push 7
+    call setCircleParams
+    call printCircle
+    push [1260]
+    out
+
+    push 40
+    push 10
+    push 7
+    call setCircleParams
+    call printCircle
+    push [1260]
+    out
+
+    push 25
+    push 20
+    push 10
+    call setCircleParams
+    call printCircle
+    push [1260]
+    out
+ret
+
+;------------------------------------------------------------
+;   This function sets X, Y coordinates and radius parameters for the 'printCircle' function.
+;
+; Inputs:
+;   - Stack:
+;       - Param1: radius
+;       - Param2: Y coordinate
+;       - Param3: X coordinate
+;
+; Clobbers:
+;   - rdx, [1251], [1252], [1253]
+;
+; Returns: 
+;   - [1251] <- X coordinate
+;   - [1252] <- Y coordinate
+;   - [1253] <- radius
+;------------------------------------------------------------
+setCircleParams:
+    pop rdx
+    pop [1253]
+    pop [1252]
+    pop [1251]
+    push rdx
+ret
+
+;------------------------------------------------------------
+;   This function prints a circle by the given X, Y coordinates and a radius.
+;   It is recommended to use this function with setCircleParams.
+;
+; Inputs:
+;   - [1251]: X coordinate
+;   - [1252]: Y coordinate
+;   - [1253]: radius
+;   - [1254]: VRAM Y capacity
+;   - [1255]: VRAM X capacity
+;   - [1256]: X multiplier
+;
+; Clobbers:
+;   - rax, rbx, rcx, rdx
+;
+; Returns:
+;   -  VRAM  <- circle image
+;   - [1260] <- number of painted pixels
+;------------------------------------------------------------
+printCircle:
+    push 0
+    pop [1260]
+
+    push 0
+    pop rbx; Y
+    FOR_Y:
+        push 0
+        pop rax; X
+        FOR_X:
+
+            call getDistance
+
+            push rcx
+            push [1253]
+            jbe belowRadius   ; distance <= radius
+            jump aboveRadius  ; distance >  radius
+
+            belowRadius:
+                push [1260]
+                push 1
+                add
+                pop [1260] 
+                call paint
+            aboveRadius:
+
+        push rax+1
+        pop rax
+        push rax
+        push [1255]
+        jb FOR_X
+    push rbx+1
+    pop rbx
+    push rbx
+    push [1254]
+    jb FOR_Y
+ret
+
+;------------------------------------------------------------
+;   This function returns a distance two points
+;                       considering the X multiplier.
+;
+; Inputs:
+;   - [1251]: X1 coordinate
+;   - [1252]: Y1 coordinate
+;   - [1256]: X multiplier
+;   -   rax : X2 coordinate
+;   -   rbx : Y2 coordinate
+;
+; Returns:
+;   - rcx <- the distance
+;------------------------------------------------------------
+getDistance:
+    push rax
+    push [1251]
+    sub
+
+    push rax
+    push [1251]
+    sub
+
+    mul
+
+    push [1256]
+
+    div
+
+    push rbx
+    push [1252]
+    sub
+
+    push rbx
+    push [1252]
+    sub
+
+    mul
+
+    add
+
+    sqrt
+
+    pop rcx
+ret
+
+
+;------------------------------------------------------------
+;   This function increases the given VRAM element by 1.
+;
+; Inputs:
+;   -   rax : X coordinate
+;   -   rbx : Y coordinate
+;   - [1255]: VRAM X capacity
+;
+; Clobbers:
+;   - rdx
+;
+; Returns:
+;   - VRAM[X][Y]++
+;------------------------------------------------------------
+paint:
+    push rbx
+    push [1255]
+    mul
+    push rax
+    add
+    pop rdx
+
+    push 1
+    push [rdx]
+    add
+    pop [rdx]
+ret
