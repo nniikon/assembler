@@ -389,19 +389,8 @@ AssemblerError textToAssembly(Assembler* ass, const bool isLastAssembly)
         DUMP_PRINT("Analysing line num: %ld\n", line);
         DUMP_PRINT("<%s>\n", str);
 
-        AssCommand command = 
-        {
-            .nRegs = 0,
-            .nNums = 0,
-            .nLabels = 0,
-            .nMems = 0,
-
-            .cmdID = 0,
-
-            .line = line,
-
-            .error = CMD_NO_ERROR,
-        };
+        AssCommand command = {};
+        command.line = line;
 
         // Save the command name position.
         size_t cmdNameBufferPos = ass->outputBufferPos;

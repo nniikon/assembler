@@ -2,26 +2,32 @@
 #include "../include/ass.h"
 #include "../include/ass_stringOperations.h"
 #include "../include/ass_parseArgs.h"
+#include "../../common/CPU_parseArgs/parseArgs.h"
 
 
 int main(int argc, char** argv)
 {
     Assembler ass = {};
-
     AssemblerError assErr = ASSEMBLER_NO_ERROR;
 
     const char* inputFileName  = NULL;
-    const char* outputFileName = NULL;
+    const char* outputFileName = DEFAULT_OUTPUT_FILE_NAME;
 
-    if (parseArguments(argc, argv, &inputFileName, &outputFileName) == false)
+    StrArgument CONSOLE_ARGS_SGNTRS[] = 
     {
-        return ASSEMBLER_WRONG_ARGUMENTS;
-    }
+        {"-i",  "source_code",   "source code directory",      &inputFileName, true},
+        {"-o",  "binary_file",   "executable file directory",  &outputFileName, false},
+    };
+
+    ConsoleArgs args = {sizeof(CONSOLE_ARGS_SGNTRS)/sizeof(CONSOLE_ARGS_SGNTRS[0]), CONSOLE_ARGS_SGNTRS};
+
+    if (!parseArgs(argc, argv, &args))
+        return ASSEMBLER_PARSE_ERROR;
 
     assErr = assInit(&ass, inputFileName, outputFileName);
     if (assErr != ASSEMBLER_NO_ERROR)
     {
-        fprintf(stdout, "error initializing assembler.\n");
+        fprintf(stderr, "error initializing assembler.\n");
         return assErr;
     }
 
@@ -29,7 +35,7 @@ int main(int argc, char** argv)
     if (assErr != ASSEMBLER_NO_ERROR)
     {
         assDtor(&ass);
-        fprintf(stdout, "assembly error.\n");
+        fprintf(stderr, "assembly error.\n");
         return assErr;
     }
 
@@ -38,7 +44,7 @@ int main(int argc, char** argv)
     assDtor(&ass);
     if (assErr != ASSEMBLER_NO_ERROR)
     {
-        fprintf(stdout, "error destructing my ass.\n");
+        fprintf(stderr, "error destructing my ass.\n");
         return assErr;
     }
 }

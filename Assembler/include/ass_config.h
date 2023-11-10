@@ -15,4 +15,6 @@ const size_t DEFAULT_SIZE_OF_ERROR_ARR = 16;
 
 const char COMMENTS_CHR = ';';
 
+const char* const DEFAULT_OUTPUT_FILE_NAME = "./output.bnn";
+
 #endif
