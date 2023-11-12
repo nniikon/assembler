@@ -1,22 +1,7 @@
 #include "../include/ass.h"
 
-#define DUMP_DEBUG   
+//#define DUMP_DEBUG   
 #include "../../lib/dump.h"
-
-
-struct AssCommand
-{
-    size_t nRegs;
-    size_t nNums;
-    size_t nLabels;
-    size_t nMems;
-
-    size_t cmdID;
-
-    size_t line;
-
-    CommandError error;
-};
 
 // Could be any number.
 // Doesn't really matter.
@@ -35,31 +20,33 @@ static CommandError checkCommandCorrectness(AssCommand* command, Assembler* ass,
 
 AssemblerError textToAssembly(Assembler* ass, const bool isLastAssembly);
 
-static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, AssCommand* cmd);
+static CommandError setCommandName(const char** str, Assembler* ass, AssCommand* cmd);
 
 static CommandError setLabelName(const char* str, Assembler* ass);
 
-static bool tryPutRegToBuffer(const char** str, const size_t size, Assembler* ass);
+static bool trySetReg(const char** str, const size_t size, AssCommand* cmd);
 
-static bool tryPutLabelToBuffer(const char** str, const size_t size, Assembler* ass);
+static bool trySetLabel(const char** str, const size_t size, Assembler* ass, AssCommand* cmd);
 
-static bool tryPutNumberToBuffer(const char** str, const size_t size, Assembler* ass);
+static bool trySetNumber(const char** str, const size_t size, AssCommand* cmd);
 
 static CommandError setArgs(const char** str, Assembler* ass, AssCommand* command);
 
-static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos);
+static void adjustCommandCode(AssCommand* command);
+
+static void putCommandToBuffer(Assembler* ass, AssCommand* cmd);
 
 
 static AssemblerError putBufferToFile(const Assembler* ass)
 {
-    size_t refSize = fwrite(ass->outputBuffer, sizeof(char), ass->outputBufferPos, ass->outputFile);
+    size_t refSize = fwrite(ass->outputBuffer, sizeof(uint8_t), ass->outputBufferPos, ass->outputFile);
     if (refSize != ass->outputBufferPos)
         return ASSEMBLER_FWRITE_ERROR;
     return ASSEMBLER_NO_ERROR;
 }
 
 
-static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, AssCommand* cmd)
+static CommandError setCommandName(const char** str, Assembler* ass, AssCommand* cmd)
 {
     assert(str);
     assert(ass);
@@ -74,12 +61,11 @@ static CommandError putCommandNameToBuffer(const char** str, Assembler* ass, Ass
     {
         if (strncasecmp(*str, COMMANDS[cmdID].name, size) == 0)
         {
-            ass->outputBuffer[ass->outputBufferPos] = (COMMANDS[cmdID].code & CMD_COMMAND_BITS);
-            ass->outputBufferPos += sizeof(uint8_t); 
-
             DUMP_PRINT("Command name: <%s>\n", COMMANDS[cmdID].name);
             DUMP_PRINT("Command code: <%d>\n", COMMANDS[cmdID].code & CMD_COMMAND_BITS);
 
+            cmd->opcode = COMMANDS[cmdID].code & CMD_COMMAND_BITS;
+            DUMP_PRINT("COMMAND CODE: %d\n", cmd->opcode);
             cmd->cmdID = cmdID;
 
             (*str) += size;
@@ -100,15 +86,14 @@ static CommandError setLabelName(const char* str, Assembler* ass)
 
     if (ass->labelArr.emptyLabel >= MAX_NUMBER_OF_LABELS)
     {
-        fprintf(stdout, "You wrote more than %zu labels and hit the limit.\n", MAX_NUMBER_OF_LABELS);
-        fprintf(stdout, "You can change this value in ./Assembler/include/ass_config.h\n.");
+        fprintf(stderr, "You wrote more than %zu labels and hit the limit.\n", MAX_NUMBER_OF_LABELS);
+        fprintf(stderr, "You can change this value in ./Assembler/include/ass_config.h\n.");
         return CMD_HIT_MAX_LABLES;
     }
 
     if (nChrInLine(str, ':') > 1)
         return CMD_TOO_MANY_COLONS;
-    
-    str = skipWhiteSpaces(str);
+
     size_t size = getWordSize(str, ":");
 
     // Check for repeated labels.
@@ -142,10 +127,9 @@ static CommandError setLabelName(const char* str, Assembler* ass)
 }
 
 
-static bool tryPutRegToBuffer(const char** str, const size_t size, Assembler* ass)
+static bool trySetReg(const char** str, const size_t size, AssCommand* cmd)
 {
     assert(str);
-    assert(ass);
 
     // Optimization.
     if (!isalpha((*str)[0]))
@@ -159,8 +143,7 @@ static bool tryPutRegToBuffer(const char** str, const size_t size, Assembler* as
             DUMP_PRINT("Register <%s>\n", REGS[i].name);
             DUMP_PRINT("id = <%d>\n", (int) REGS[i].id);
 
-            ass->outputBuffer[ass->outputBufferPos] = REGS[i].id;
-            ass->outputBufferPos += sizeof(uint8_t);
+            cmd->reg = REGS[i].id;
 
             return true;
         }
@@ -168,15 +151,10 @@ static bool tryPutRegToBuffer(const char** str, const size_t size, Assembler* as
     return false;
 }
 
-
-static bool tryPutLabelToBuffer(const char** str, const size_t size, Assembler* ass)
+static bool trySetLabel(const char** str, const size_t size, Assembler* ass, AssCommand* cmd)
 {
     assert(str);
     assert(ass);
-
-    // Optimization.
-    if (!isalpha((*str)[0]))
-        return false;
 
     DUMP_PRINT("Putting label to the buffer\n");
     for (size_t i = 0; i < ass->labelArr.nLabels; i++)
@@ -190,16 +168,19 @@ static bool tryPutLabelToBuffer(const char** str, const size_t size, Assembler* 
             DUMP_PRINT("Label <%s>\n", ass->labelArr.labels[i].name);
             DUMP_PRINT("Adress = <%d>\n", (int)ass->labelArr.labels[i].adress);
 
-            memcpy(ass->outputBuffer + ass->outputBufferPos, &(ass->labelArr.labels[i].adress), sizeof(int));
-            ass->outputBufferPos += sizeof(int);
+            cmd->imm = ass->labelArr.labels[i].adress;
+
             DUMP_PRINT("Putting label success\n");
             return true;
         }
     }
 
+    // If the label hasn't been met before...
+    cmd->nLabels++;
+    cmd->imm = LABEL_POISON;
+    putCommandToBuffer(ass, cmd);
+
     DUMP_PRINT("No such label was found\n");
-    memcpy(ass->outputBuffer + ass->outputBufferPos, &LABEL_POISON, sizeof(int));
-    ass->outputBufferPos += sizeof(int);
 
     return false;
 }
@@ -209,7 +190,7 @@ static inline bool isNumber(char chr)
     return (isdigit(chr) || chr == '+' || chr == '-' || chr == '.');
 }
 
-static bool tryPutNumberToBuffer(const char** str, const size_t size, Assembler* ass)
+static bool trySetNumber(const char** str, const size_t size, AssCommand* cmd)
 {
     DUMP_PRINT("Putting number to buffer.\n");
     for (size_t i = 0; i < size; i++)
@@ -222,8 +203,7 @@ static bool tryPutNumberToBuffer(const char** str, const size_t size, Assembler*
     DUMP_PRINT("\"%.*s\"\n", (int)size, *str);
     DUMP_PRINT("number: <%d>\n", num);
 
-    memcpy(ass->outputBuffer + ass->outputBufferPos, &num, sizeof(int));
-    ass->outputBufferPos += sizeof(int);
+    cmd->imm = num;
 
     return true;
 }
@@ -265,19 +245,13 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
     if ((*str)[0] == '\0') 
         return CMD_NO_ERROR;
 
-    if (tryPutRegToBuffer(str, size, ass))
+    if (trySetReg(str, size, command))
     {
         command->nRegs++;
         *str += size;
         return setArgs(str, ass, command);
     }
-    else if (tryPutLabelToBuffer(str, size, ass))
-    {
-        command->nLabels++;
-        *str += size;
-        return setArgs(str, ass, command);
-    }
-    else if (tryPutNumberToBuffer(str, size, ass)) 
+    else if (trySetNumber(str, size, command)) 
     {
         command->nNums++;
         *str += size;
@@ -294,66 +268,99 @@ static CommandError setArgs(const char** str, Assembler* ass, AssCommand* comman
         // TODO: add check
         return CMD_NO_ERROR;
     }
+    else if (trySetLabel(str, size, ass, command))
+    {
+        command->nLabels++;
+        *str += size;
+        return setArgs(str, ass, command);
+    }
     else
     {
         return CMD_INVALID_ARG;
     }
-
 
     DUMP_PRINT("setArgs successful\n");
     return CMD_NO_ERROR;
 }
 
 
-static void adjustCommandCode(AssCommand* command, Assembler* ass, size_t pos)
+static void adjustCommandCode(AssCommand* cmd)
 {
-    assert(command);
-    assert(ass);
+    assert(cmd);
 
     DUMP_PRINT("Started adjusting command code\n");
-
-    if (command->nLabels == 1)
+    DUMP_PRINT("Command code: %d\n", cmd->opcode);
+    if (cmd->nLabels == 1)
     {
-        ass->outputBuffer[pos] |= CMD_IMMEDIATE_BIT;
+        cmd->opcode |= CMD_IMMEDIATE_BIT;
         DUMP_PRINT("add imm(label) bit\n");
     }
-    if (command->nNums == 1)
+    if (cmd->nNums == 1)
     {
-        ass->outputBuffer[pos] |= CMD_IMMEDIATE_BIT;
+        cmd->opcode |= CMD_IMMEDIATE_BIT;
         DUMP_PRINT("add imm(number) bit\n");
     }
-    if (command->nMems == 1)
+    if (cmd->nMems == 1)
     {
-        ass->outputBuffer[pos] |= CMD_MEMORY_BIT;
+        cmd->opcode |= CMD_MEMORY_BIT;
         DUMP_PRINT("add ram bit\n");
     }
-    if (command->nRegs == 1)
+    if (cmd->nRegs == 1)
     {
-        ass->outputBuffer[pos] |= CMD_REGISTER_BIT;
+        cmd->opcode |= CMD_REGISTER_BIT;
         DUMP_PRINT("add reg bit\n");
     }
 
-    DUMP_PRINT("Command code: %d\n", ass->outputBuffer[pos]);
+    DUMP_PRINT("Command code: %d\n", cmd->opcode);
     DUMP_PRINT("Adjustment success\n");
 }
 
 
-#define PUSH_AND_CONTINUE_ON_ERR(err)\
-    if ((err) != CMD_NO_ERROR)\
-    {\
-        if (isLastAssembly)\
-        {\
-            AssError tempError = {err, line, ass->inputFileName};\
-            pushAssErrArray(&(ass->errorArray), &tempError);\
-        }\
-        FIX_COMMENTS_AND_CONTINUE(hasComments, commentPtr);\
-    }\
+static void putCommandToBuffer(Assembler* ass, AssCommand* cmd)
+{
+    assert(ass);
+    assert(cmd);
+
+    DUMP_PRINT("Started putting command to the buffer.\n");
+
+    // Set the opcode.
+    ass->outputBuffer[ass->outputBufferPos] = cmd->opcode;
+    ass->outputBufferPos += sizeof(uint8_t);
+    DUMP_PRINT("OPCODE: %d\n", cmd->opcode);
+
+    if (cmd->nRegs > 0)
+    {
+        ass->outputBuffer[ass->outputBufferPos] = cmd->reg;
+        ass->outputBufferPos += sizeof(uint8_t);
+        DUMP_PRINT("REGS: %d\n", cmd->reg);
+    }
+    if (cmd->nLabels + cmd->nNums > 0)
+    {
+        memcpy(ass->outputBuffer + ass->outputBufferPos, &(cmd->imm), sizeof(int));
+        ass->outputBufferPos += sizeof(int);
+        DUMP_PRINT("IMM: %d\n", cmd->imm);
+    }
+}
 
 
-#define FIX_COMMENTS_AND_CONTINUE(hasComments, commentPtr)\
-    if (hasComments)\
-        *commentPtr = COMMENTS_CHR;\
-    continue\
+#define PUSH_ON_ERR(err)                                            \
+    if ((err) != CMD_NO_ERROR)                                      \
+    {                                                               \
+        if (isLastAssembly)                                         \
+        {                                                           \
+            AssError tempError = {err, line, ass->inputFileName};   \
+            pushAssErrArray(&(ass->errorArray), &tempError);        \
+        }                                                           \
+        SET_UP_CONTINUE(hasComments, commentPtr);                   \
+    }                                                               \
+
+
+#define SET_UP_CONTINUE(hasComments, commentPtr)            \
+    if (hasComments)                                        \
+        *commentPtr = COMMENTS_CHR;                         \
+    if (isLastAssembly)                                     \
+        putCmdToListing(ass, &command, cmdNameBufferPos);   \
+    continue                                                \
 
 
 AssemblerError textToAssembly(Assembler* ass, const bool isLastAssembly)
@@ -372,53 +379,58 @@ AssemblerError textToAssembly(Assembler* ass, const bool isLastAssembly)
             *commentPtr = '\0';
         }
 
+        AssCommand command = {};
+        command.line = line;
+
         const char* str = ass->inputText.line[line].str;
+        size_t cmdNameBufferPos = ass->outputBufferPos;
 
         // Skip insignificant characters.
-        skipWhiteSpaces(str);
+        str = skipWhiteSpaces(str);
         if (str[0] == '\0')
         {
-            FIX_COMMENTS_AND_CONTINUE(hasComments, commentPtr);
+            SET_UP_CONTINUE(hasComments, commentPtr);
         }
 
         // Check the correctness of brackets.
         if (nChrInLine(str, '[') != nChrInLine(str, ']'))
-            PUSH_AND_CONTINUE_ON_ERR(CMD_MISMATCHED_BRACKET);
+            PUSH_ON_ERR(CMD_MISMATCHED_BRACKET);
 
         IF_DUMP_DEBUG(fputc('\n', stderr));
         DUMP_PRINT("Analysing line num: %ld\n", line);
         DUMP_PRINT("<%s>\n", str);
-
-        AssCommand command = {};
-        command.line = line;
+        DUMP_PRINT("Current shift: %zu\n", ass->outputBufferPos);
 
         // Save the command name position.
-        size_t cmdNameBufferPos = ass->outputBufferPos;
 
         CommandError err = CMD_NO_ERROR;
 
         // If the line has ':' in it...
-        //function:
-        if (strchr(str, ':') != NULL)
+        if (strchr(str, ':') != NULL) // TODO: fix `la bel:`
         {
             err = setLabelName(str, ass); // Set the label.
-            PUSH_AND_CONTINUE_ON_ERR(err);
-            FIX_COMMENTS_AND_CONTINUE(hasComments, commentPtr);
+            PUSH_ON_ERR(err);
+            SET_UP_CONTINUE(hasComments, commentPtr);
         }
         else
         {
             // Treat the first word as a command name.
-            err = putCommandNameToBuffer(&str, ass, &command);
-            PUSH_AND_CONTINUE_ON_ERR(err);
+            err = setCommandName(&str, ass, &command);
+            PUSH_ON_ERR(err);
         }
         // Set the args.
         err = setArgs(&str, ass, &command);
-        PUSH_AND_CONTINUE_ON_ERR(err);
+        PUSH_ON_ERR(err);
 
-        adjustCommandCode(&command, ass, cmdNameBufferPos);
+        adjustCommandCode(&command);
+
+        putCommandToBuffer(ass, &command);
+
+        if (isLastAssembly)
+            putCmdToListing(ass, &command, cmdNameBufferPos);
 
         err = checkCommandCorrectness(&command, ass, cmdNameBufferPos);
-        PUSH_AND_CONTINUE_ON_ERR(err);
+        PUSH_ON_ERR(err);
 
         if (hasComments)
             *commentPtr = COMMENTS_CHR;
@@ -456,27 +468,27 @@ AssemblerError assembly(Assembler* ass)
 }
 
 
-AssemblerError assInit(Assembler* ass, const char* inputFileName, const char* outputFileName)
+AssemblerError assInit(Assembler* ass, const AssemblerInitInfo* info)
 {
     assert(ass);
-    assert(inputFileName);
+    assert(info);
 
     DUMP_PRINT("assInit started\n");
 
     // Initialize input Text from the file. 
-    FileError error = textInit(inputFileName, &ass->inputText);
+    FileError error = textInit(info->inputFileName, &ass->inputText);
     if (error != PARSE_NO_ERROR)
     {
-        fprintf(stdout, "Initializing text error\n");
+        fprintf(stderr, "Initializing text error\n");
         return ASSEMBLER_PARSE_ERROR;
     }
 
     // Open the output file.
-    ass->outputFile = fopen(outputFileName, "wb");
+    ass->outputFile = fopen(info->outputFileName, "wb");
     if (ass->outputFile == NULL)
     {
         textDtor(&ass->inputText);
-        fprintf(stdout, "failed to open %s\n", outputFileName);
+        fprintf(stderr, "failed to open %s\n", info->outputFileName);
         return ASSEMBLER_OPEN_FILE_ERROR;
     }
 
@@ -484,7 +496,7 @@ AssemblerError assInit(Assembler* ass, const char* inputFileName, const char* ou
     uint8_t* temp = (uint8_t*) calloc(ass->inputText.nLines, MAX_NUMBER_LINE_CMD * sizeof(int));
     if (temp == NULL)
     {
-        fprintf(stdout, "Allocating memory error.\n");
+        fprintf(stderr, "Allocating memory error.\n");
 
         fclose(ass->outputFile);
         textDtor(&ass->inputText);
@@ -494,7 +506,7 @@ AssemblerError assInit(Assembler* ass, const char* inputFileName, const char* ou
     ass->outputBuffer = temp;
     ass->outputBufferPos = 0lu;
 
-    ass->inputFileName = inputFileName;
+    ass->inputFileName = info->inputFileName;
 
     // Initialize LabelArr
     ass->labelArr.emptyLabel = 0;
@@ -502,7 +514,7 @@ AssemblerError assInit(Assembler* ass, const char* inputFileName, const char* ou
     Label* tempLabel = (Label*) calloc(MAX_NUMBER_OF_LABELS, sizeof(Label));
     if (tempLabel == NULL)
     {
-        fprintf(stdout, "Allocating memory error.\n");
+        fprintf(stderr, "Allocating memory error.\n");
 
         free(temp);
         fclose(ass->outputFile);
@@ -517,13 +529,28 @@ AssemblerError assInit(Assembler* ass, const char* inputFileName, const char* ou
     err = AssErrorInit(&(ass->errorArray));
     if (err != ASSEMBLER_NO_ERROR)
     {
-        fprintf(stdout, "Assembler errors initialization error.\n");
+        fprintf(stderr, "Assembler errors initialization error.\n");
 
         free(tempLabel);
         free(temp);
         fclose(ass->outputFile);
         textDtor(&ass->inputText);
         return err;
+    }
+
+    if (info->listingFileName != NULL)
+    {
+        ass->listingFile = fopen(info->listingFileName, "w");
+        if (ass->listingFile == NULL)
+        {
+            fprintf(stderr, "Failed to open %s.\n", info->listingFileName);
+
+            free(tempLabel);
+            free(temp);
+            fclose(ass->outputFile);
+            textDtor(&ass->inputText);
+            return ASSEMBLER_OPEN_FILE_ERROR;
+        }
     }
 
     DUMP_PRINT("assInit success\n");

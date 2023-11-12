@@ -7,6 +7,32 @@
 #include "ass_config.h"
 #include "ass_stringOperations.h"
 #include "ass_err.h"
+#include "ass_listing.h"
+
+struct AssCommand
+{
+    size_t nRegs;
+    size_t nNums;
+    size_t nLabels;
+    size_t nMems;
+
+    uint8_t opcode;
+    uint8_t reg;
+    int imm;
+
+    size_t cmdID;
+
+    size_t line;
+
+    CommandError error;
+};
+
+struct AssemblerInitInfo
+{
+    const char* inputFileName;
+    const char* outputFileName;
+    const char* listingFileName;
+};
 
 struct Label
 {
@@ -25,6 +51,7 @@ struct LabelArr
 struct Assembler
 {
     FILE* outputFile;
+    FILE* listingFile;
 
     Text inputText;
     const char* inputFileName;
@@ -39,8 +66,8 @@ struct Assembler
 
 AssemblerError assembly(Assembler* ass);
 
-AssemblerError assInit(Assembler* ass, const char* inputFileName, const char* outputFileName);
+AssemblerError assInit(Assembler* ass, const AssemblerInitInfo* info);
 
-AssemblerError assDtor(Assembler* ass);
+AssemblerError assDtor(Assembler* ass); // ASS DESTRUCTOR!!!!!!!!!!!!
 
 #endif

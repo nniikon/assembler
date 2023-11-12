@@ -9,13 +9,13 @@ int main(int argc, char** argv)
     Assembler ass = {};
     AssemblerError assErr = ASSEMBLER_NO_ERROR;
 
-    const char* inputFileName  = NULL;
-    const char* outputFileName = DEFAULT_OUTPUT_FILE_NAME;
+    AssemblerInitInfo initInfo = {NULL, DEFAULT_OUTPUT_FILE_NAME, NULL};
 
     StrArgument CONSOLE_ARGS_SGNTRS[] = 
     {
-        {"-i",  "source_code",   "source code directory",      &inputFileName, true},
-        {"-o",  "binary_file",   "executable file directory",  &outputFileName, false},
+        {"-i",  "source_code",   "source code directory",      &(initInfo.inputFileName),   true},
+        {"-o",  "binary_file",   "executable file directory",  &(initInfo.outputFileName),  false},
+        {"-l",  "listing_file",  "compiler logs info",         &(initInfo.listingFileName), false},
     };
 
     ConsoleArgs args = {sizeof(CONSOLE_ARGS_SGNTRS)/sizeof(CONSOLE_ARGS_SGNTRS[0]), CONSOLE_ARGS_SGNTRS};
@@ -23,7 +23,7 @@ int main(int argc, char** argv)
     if (!parseArgs(argc, argv, &args))
         return ASSEMBLER_PARSE_ERROR;
 
-    assErr = assInit(&ass, inputFileName, outputFileName);
+    assErr = assInit(&ass, &initInfo);
     if (assErr != ASSEMBLER_NO_ERROR)
     {
         fprintf(stderr, "error initializing assembler.\n");

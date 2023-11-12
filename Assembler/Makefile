@@ -10,10 +10,10 @@ OBJS = $(patsubst $(addsuffix /%.cpp, $(SRC_DIR)), $(BUILD_DIR)/%.o, $(SRCS))
 all: $(BUILD_DIR) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJS)
-	g++ $^ $(CFLAGS) -o $(BUILD_DIR)/$@
+	@g++ $^ $(CFLAGS) -o $(BUILD_DIR)/$@
 
 $(BUILD_DIR)/%.o: $(addsuffix /%.cpp, $(SRC_DIR))
-	g++ $^ $(CFLAGS) -c -o $@
+	@g++ $^ $(CFLAGS) -c -o $@
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)

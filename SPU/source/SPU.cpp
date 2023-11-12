@@ -73,7 +73,7 @@ static int* getArgsAdress(SPU* spu)
 {
     /*  curCommand
            V
-       |AB|00|11 11 11 11|
+       |AB|00|56 78 9A BC|
         |  |  |
         |  |  +-->imm
         |  +----->reg

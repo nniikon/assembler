@@ -6,7 +6,6 @@
 
 #include "../../common/CPU_parseArgs/parseArgs.h"
 
-
 int main(int argc, char** argv)
 {
     SPU_InitData data = {};
@@ -29,7 +28,7 @@ int main(int argc, char** argv)
     err = spuInit(&spu, &data);
     if (err != SPU_NO_ERROR)
     {
-        fprintf(stdout, "ERROR OCCURED\n");
+        fprintf(stderr, "ERROR OCCURED\n");
         return err;
     }
 
@@ -37,14 +36,14 @@ int main(int argc, char** argv)
     if (err != SPU_NO_ERROR)
     {
         spuDtor(&spu);
-        fprintf(stdout, "ERROR OCCURRED\n");
+        fprintf(stderr, "ERROR OCCURRED\n");
         return err;
     }
 
     err = spuDtor(&spu);
     if (err != SPU_NO_ERROR)
     {
-        fprintf(stdout, "ERROR OCCURRED\n");
+        fprintf(stderr, "ERROR OCCURRED\n");
         return err;
     }
 }

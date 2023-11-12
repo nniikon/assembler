@@ -48,16 +48,14 @@ static void dumpRam(SpuDumpInfo* dump, int* ram)
 
 static void dumpStack(SpuDumpInfo* dump, Stack* stack)
 {
-    const int NUMBERS = 10;
+    const int N_ELEMS = 10;
 
-    int i = NUMBERS;
+    int i = N_ELEMS;
     int size = stack->size;
 
-    while (--size >= 0 && i >= 0)
+    while (--size >= 0 && i-- >= 0)
     {
         print("stack[%2d] | %2d\n", size, stack->data[size]);
-
-        i--;
     }
 }
 

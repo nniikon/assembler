@@ -31,7 +31,7 @@
     #define DUMP_PRINT(...) do {} while(0)
     #define DUMP_PRINT_CYAN(...) do {} while(0)
     #define PRINT_GREEN(...) do {} while(0)
-    #define IF_DUMP_DEBUG(...) __VA_ARGS__;
+    #define IF_DUMP_DEBUG(...) do {} while(0)
 #endif
 
 #endif

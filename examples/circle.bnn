@@ -44,7 +44,8 @@ main:
 ret
 
 ;------------------------------------------------------------
-;   This function sets X, Y coordinates and radius parameters for the 'printCircle' function.
+;   This function sets X, Y coordinates and radius parameters 
+;           for the 'printCircle' function.
 ;
 ; Inputs:
 ;   - Stack:
